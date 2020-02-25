@@ -2,6 +2,7 @@
 import os
 import glob
 import random
+import argparse
 
 from global_config import cfg
 
@@ -13,6 +14,16 @@ CFG= cfg
 firstly, LaneNetDataProducer generates tfrecords from dataset, then LaneNetDataFeeder, reads
 the tfrecords files and generate data to be trained on to the LaneNet model
 '''
+
+
+def init_args():
+
+    parser= argparse.ArgumentParser()
+    parser.add_argument('--dataset_dir', type=str, help= 'the source nsfw data dir path')
+    parser.add_argument('--tfrecords_dir', type= str, help= 'the dir path to save converted tfrecords')
+
+    return parser.parse_args() 
+
 
 #convert raw image files into tfrecords
 class LaneNetDataProducer(object):
@@ -247,4 +258,13 @@ class LaneNetDataFeeder(object):
 
             iterator= dataset.make_one_shot_iterator()
 
-        return 
+        return iterator.get_next(name= '{:s}_IteratorGetNext'.format(self.dataset_flags))
+
+
+if __name__ == "__main__":
+    args= init_args()
+
+    assert os.path.exists(args.dataset_dir), '{:s} doesnot exist'.format(args.dataset_dir)
+
+    producer= LaneNetDataProducer(dataset_dir= args.dataset_dir)
+    producer.generate_tfrecords(save_dir= args.tfrecords_dir, step_size= 1000)

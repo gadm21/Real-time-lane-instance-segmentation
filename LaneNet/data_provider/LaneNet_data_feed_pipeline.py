@@ -1,13 +1,16 @@
 
 import os
+import sys
+sys.path.append(os.getcwd())
+
+
 import glob
 import random
 import argparse
-
 from global_config import cfg
 
 import tensorflow as tf
-from data_provider import tf_io_pipeline_tools
+import tf_io_pipeline_tools
 
 CFG= cfg
 '''
@@ -24,11 +27,10 @@ def init_args():
 
     return parser.parse_args() 
 
-
 #convert raw image files into tfrecords
 class LaneNetDataProducer(object):
      
-     def __init__(self, dataset_dir):
+    def __init__(self, dataset_dir):
         self.dataset_dir= dataset_dir
 
         #directory of training data and their labels
@@ -109,7 +111,7 @@ class LaneNetDataProducer(object):
         batchSized_gt_instance_paths= train_split_result['gt_instance_paths']
         tfrecord_paths= train_split_result['tfrecords_paths']
         for index, batchSized_gt_path in enumerate(batchSized_gt_paths):
-            tf_io_pipeline_tools.create_example_tfrecords(batchSized_gt_path, 
+            tf_io_pipeline_tools.write_example_tfrecords(batchSized_gt_path, 
                                                         batchSized_gt_binary_paths[index],
                                                         batchSized_gt_instance_paths[index],
                                                         tfrecord_paths[index])
@@ -124,7 +126,7 @@ class LaneNetDataProducer(object):
         batchSized_gt_instance_paths= val_split_result['gt_instance_paths']
         tfrecord_paths= val_split_result['tfrecords_paths']
         for index, batchSized_gt_path in enumerate(batchSized_gt_paths):
-            tf_io_pipeline_tools.create_example_tfrecords(batchSized_gt_path,
+            tf_io_pipeline_tools.write_example_tfrecords(batchSized_gt_path,
                                                         batchSized_gt_binary_paths[index],
                                                         batchSized_gt_instance_paths[index],
                                                         tfrecord_paths[index])
@@ -138,11 +140,11 @@ class LaneNetDataProducer(object):
         batchSized_gt_instance_paths= test_split_result['gt_instance_paths']
         tfrecord_paths= test_split_result['tfrecords_paths']
         for index, batchSized_gt_path in enumerate(batchSized_gt_paths):
-            tf_io_pipeline_tools.create_example_tfrecords(batchSized_gt_path,
+            tf_io_pipeline_tools.write_example_tfrecords(batchSized_gt_path,
                                                         batchSized_gt_binary_paths[index],
                                                         batchSized_gt_instance_paths[index],
                                                         tfrecord_paths[index])        
-            
+        return    
 
     def is_source_data_complete(self):
         return \
@@ -222,8 +224,6 @@ class LaneNetDataProducer(object):
 
         return
 
-
-
 #reads training examples from tfrecords for (nsfw?) model
 class LaneNetDataFeeder(object):
 
@@ -261,6 +261,10 @@ class LaneNetDataFeeder(object):
         return iterator.get_next(name= '{:s}_IteratorGetNext'.format(self.dataset_flags))
 
 
+
+print("done")
+
+'''
 if __name__ == "__main__":
     args= init_args()
 
@@ -268,3 +272,5 @@ if __name__ == "__main__":
 
     producer= LaneNetDataProducer(dataset_dir= args.dataset_dir)
     producer.generate_tfrecords(save_dir= args.tfrecords_dir, step_size= 1000)
+
+'''

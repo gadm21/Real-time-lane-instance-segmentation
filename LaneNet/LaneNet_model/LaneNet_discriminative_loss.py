@@ -2,13 +2,15 @@
 #Discriminative loss for instance segmentation
 
 import tensorflow as tf
-
+import numpy as np
 
 
 '''
 The 2nd argument to cond() & body() is prdiction not batch, but it called and treated as batch inside the function!! 
 How is body using prediction[i]? 
 Is prediction related to batch ?
+May be prediction is array of predictions and thus the batch size is the number of predictions we should consider
+
 
 why is body() using prediction[i] & correct_label[i] which are variables
 in the outer function (discriminative_loss()) and not using batch & label
@@ -38,6 +40,49 @@ def discriminative_loss_single(
 
 
         #calculate instance pixel embedding mean vec
+        segmented_sum= tf.unsorted_segment_sum(prediction, unique_id, num_instances)
+        mu= tf.div(segmented_sum, tf.reshape(counts, (-1, 1)))
+        mu_expand= tf.gather(mu, unique_id)
+
+        #calculate Lvar
+        #[|µc − xi| − δv]^2
+        distance= tf.norm(tf.subtract(mu_expand, prediction), axis= 1, ord= 1)
+        distance= tf.subtract(distance, delta_v)
+        distance= tf.clip_by_value(distance, 0., distance)
+        distance= tf.square(distance)
+        # 1/c c:1->C 1/N N:1->N PN ([|µc − xi| − δv]^2)
+        Lvar= tf.unsorted_segment_sum(distance, unique_id, num_instances)
+        Lvar= tf.div(Lvar, counts)
+        Lvar= tf.reduce_sum(Lvar)
+        Lvar= tf.divide(Lvar, tf.cast(num_instances, tf.float32))
+
+        #calculate Ldist
+        mu_interleaved_rep= tf.tile(mu, [num_instances, 1])
+        mu_band_rep= tf.tile(mu, [1, num_instances])
+        mu_band_rep= tf.reshape(my_band_rep, (num_instances**2, feature_dim))
+        
+        mu_diff= tf.subtract(mu_band_rep, mu_interleaved_rep)
+        intermediate_tensor= tf.reduce_sum(tf.abs(mu_diff), axis= 1)
+        zero_vector= tf.zeros(1, dtype= tf.float32)
+        bool_mask= tf.not_equal(intermediate_tensor, zero_vector)
+        mu_diff_bool= tf.boolean_mask(mu_diff, bool_mask)
+
+        mu_norm= tf.norm(mu_diff_bool, axis= 1, ord= 1)
+        mu_norm= tf.subtract(2. * delta_d, mu_norm)
+        mu_norm= tf.clip_by_value(mu_norm, 0., mu_norm)
+        mu_norm= tf.square(mu_norm)
+
+        Ldist= tf.reduce_mean(mu_norm)
+        Lreg= tf.reduce_mean(tf.norm(mu, axis= 1, ord= 1))
+
+        param_scale= 1.
+
+        Lvar= param_var * Lvar
+        Ldist= param_dist * Ldist
+        Lreg= param_reg * Lreg
+        loss= param_scale * (Lvar + Ldist + Lreg)
+
+        return loss, Lvar, Ldist, Lreg
 
 
 
@@ -78,3 +123,4 @@ def discriminative_loss(prediction, correct_label, feature_dim, image_shape,
     l_reg= tf.reduce_mean(out_reg_op)
 
     return disc_loss, l_var, l_dist, l_reg
+

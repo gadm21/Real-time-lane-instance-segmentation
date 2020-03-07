@@ -40,21 +40,23 @@ def train_LaneNet (dataset_dir, weights_path):
                                             binary_label= train_binary_labels,
                                             instance_label= train_instance_labels,
                                             name= 'lanenet_model')
+
     train_total_loss= train_compute_ret['total_loss']
     train_binary_seg_loss= train_compute_ret['binary_seg_loss']
     train_discriminative_loss= train_compute_ret['discriminative_loss']
-    train_pix_embedding= train_compute_ret['instance_seg_logits']
+
 
     #compute accuracy
+    train_pix_embedding= train_compute_ret['instance_seg_logits']    
     train_prediction_logits= train_compute_ret['binary_seg_logits']
     train_prediction_score= tf.nn.softmax(logits= train_prediction_logits)
     train_prediction= tf.argmax(train_prediction_score, axis= -1)
     train_accuracy= evaluate_model_utils.calculate_model_precision(train_prediction_logits, train_binary_labels)
     train_false_positive= evaluate_model_utils.calculate_model_fp(train_prediction_logits, train_binary_labels)
     train_false_negative= evaluate_model_utils.calculate_model_fn(train_prediction_logits, train_binary_labels)
+
     train_binary_seg_ret_for_summary= evaluate_model_utils.get_image_summary(train_prediction)
     train_embedding_ret_for_summary= evaluate_model_utils.get_image_summary(train_pix_embedding)
-
     train_cost_scalar= tf.summary.scalar(name= 'train_cost', tensor= train_total_loss)
     train_accuracy_scalar= tf.summary.scalar(name= 'train_accuracy', tensor= train_accuracy)
     train_binary_seg_loss_scalar= tf.summary.scalar(name= 'train_binary_seg_loss', tensor= train_binary_seg_loss)
@@ -63,7 +65,6 @@ def train_LaneNet (dataset_dir, weights_path):
     train_fp_scalar= tf.summary.scalar(name= 'train_fp', tensor= train_false_positive)
     train_binary_seg_ret_image= tf.summary.image(name= 'train_binary_seg_ret', tensor= train_binary_seg_ret_for_summary)
     train_embedding_features_ret_image= tf.summary.image(name='train_embedding_features_ret', tensor= train_embedding_ret_for_summary)
-
     train_merge_summary_op= tf.summary.merge(
         [train_accuracy_scalar, train_cost_scalar, train_binary_seg_loss_scalar,
         train_instance_seg_loss_scalar, train_fn_scalar, train_fp_scalar, 

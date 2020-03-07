@@ -1,7 +1,7 @@
 
 import os
 import sys
-sys.path.append(os.getcwd())
+#sys.path.append(os.getcwd())
 
 
 import glob
@@ -10,7 +10,7 @@ import argparse
 from global_config import cfg
 
 import tensorflow as tf
-import tf_io_pipeline_tools
+from . import tf_io_pipeline_tools
 
 CFG= cfg
 '''
@@ -262,9 +262,8 @@ class LaneNetDataFeeder(object):
 
 
 
-print("done")
 
-'''
+
 if __name__ == "__main__":
     args= init_args()
 
@@ -273,4 +272,3 @@ if __name__ == "__main__":
     producer= LaneNetDataProducer(dataset_dir= args.dataset_dir)
     producer.generate_tfrecords(save_dir= args.tfrecords_dir, step_size= 1000)
 
-'''

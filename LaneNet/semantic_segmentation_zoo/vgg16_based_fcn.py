@@ -8,14 +8,18 @@
 """
 Implement VGG16 based fcn net for semantic segmentation
 """
+import os
+import sys 
+sys.path.append(os.getcwd())
 import collections
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
-from config import global_config
-from semantic_segmentation_zoo import cnn_basenet
+import global_config
+import cnn_basenet
 
 CFG = global_config.cfg
+
 
 
 class VGG16FCN(cnn_basenet.CNNBaseModel):
@@ -365,8 +369,10 @@ if __name__ == '__main__':
     """
     test code
     """
+    
     test_in_tensor = tf.placeholder(dtype=tf.float32, shape=[1, 256, 512, 3], name='input')
     model = VGG16FCN(phase='train')
     ret = model.build_model(test_in_tensor, name='vgg16fcn')
     for layer_name, layer_info in ret.items():
         print('layer name: {:s} shape: {}'.format(layer_name, layer_info['shape']))
+    

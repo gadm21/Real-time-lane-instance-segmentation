@@ -242,13 +242,13 @@ class LaneNetDataFeeder(object):
 
             dataset= tf.data.TFRecordDataset(tfrecords_file_paths)
 
-            dataset= dataset.map(map_func= tf_io_pipeline_tools.decode,num_parallel_calls= CFG.CPU_MULTI_PROCESS_NUMS)
+            dataset= dataset.map(map_func= tf_io_pipeline_tools.decode,num_parallel_calls= CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
             if self.dataset_flags == 'test':
-                dataset= dataset.map(map_func= tf_io_pipeline.augment_for_test,num_parallel_calls=CFG.CPU_MULTI_PROCESS_NUMS)
+                dataset= dataset.map(map_func= tf_io_pipeline.augment_for_test,num_parallel_calls=CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
             else:
-                dataset= dataset.map(map_func= tf_io_pipeline_tools.augment_for_training, num_parallel_calls=CFG.CPU_MULTI_PROCESS_NUMS)
+                dataset= dataset.map(map_func= tf_io_pipeline_tools.augment_for_train, num_parallel_calls=CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
             
-            dataset= dataset.map(map_func= tf_io_pipeline_tools.normalize, num_parallel_calls=CFG.CPU_MUTLI_PROCESS_NUMS)
+            dataset= dataset.map(map_func= tf_io_pipeline_tools.normalize, num_parallel_calls=CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
 
             if self.dataset_flags != 'test':
                 dataset= dataset.shuffle(buffer_size= 1000)

@@ -16,7 +16,7 @@ import collections
 import tensorflow.compat.v1 as tf
 
 import global_config
-import cnn_basenet
+from LaneNet.semantic_segmentation_zoo import cnn_basenet
 
 CFG = global_config.cfg
 

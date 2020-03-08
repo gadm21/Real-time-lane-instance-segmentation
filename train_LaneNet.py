@@ -12,17 +12,36 @@ import sys
 sys.path.append(os.getcwd())
 
 from LaneNet.data_provider import LaneNet_data_feed_pipeline
-
+from LaneNet.LaneNet_model import LaneNet
 import global_config
 cfg= global_config.cfg 
 
 
 
+def init_args():
+    """
 
-print("done")
+    :return:
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-d', '--dataset_dir', type=str,
+                        help='Lanenet Dataset dir')
+    parser.add_argument('-w', '--weights_path', type=str, default= None,
+                        help='Path to pre-trained weights to continue training')
+    parser.add_argument('-m', '--multi_gpus', type=args_str2bool, default=False,
+                        nargs='?', const=True, help='Use multi gpus to train')
+    parser.add_argument('--net_flag', type=str, default='vgg',
+                        help='The net flag which determins the net\'s architecture')
+
+    return parser.parse_args()
 
 
-def train_LaneNet (dataset_dir, weights_path):
+
+
+
+
+def train_LaneNet (dataset_dir, weights_path= None):
 
  
     train_dataset= LaneNet_data_feed_pipeline.LaneNetDataFeeder(dataset_dir, flags= 'train')
@@ -35,6 +54,10 @@ def train_LaneNet (dataset_dir, weights_path):
 
 
     train_images, train_binary_labels, train_instance_labels= train_dataset.inputs(cfg.TRAIN.BATCH_SIZE, 1)
+    
+    print("train_images:", train_images.shape, "...................................")
+    print("binary_labels:", train_binary_labels.shape, "...........................")
+    print("instance_labels:", train_instance_labels.shape, ".......................")
     
     #compute loss 
     train_compute_ret= train_net.compute_loss(input_tensor= train_images, 
@@ -77,3 +100,10 @@ def train_LaneNet (dataset_dir, weights_path):
 
             print("accuracy:", train_c)
             print("loss:", train_binary_loss)
+
+
+if __name__ == '__main__':
+    # init args
+    #args = init_args()
+    dataset_dir= r"C:\Users\gad\Downloads\Compressed\lanenet-lane-detection\data\training_data_example"
+    train_LaneNet(dataset_dir)

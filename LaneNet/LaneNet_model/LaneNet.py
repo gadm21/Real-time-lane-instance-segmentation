@@ -2,9 +2,8 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 
 import global_config
-import LaneNet_BackEnd 
-import LaneNet_FrontEnd 
-from semantic_segmentation_zoo import cnn_basenet
+from LaneNet.LaneNet_model import LaneNet_BackEnd, LaneNet_FrontEnd
+from LaneNet.semantic_segmentation_zoo import cnn_basenet
 
 cfg= global_config.cfg
 
@@ -45,13 +44,20 @@ class LaneNet(cnn_basenet.CNNBaseModel):
 
         with tf.variable_scope(name_or_scope= name, reuse= self._reuse):
             #first, extract image features
-            extract_features_results= self._frontend.bulid_model(input_tensor= input_tensor, name= 'vgg_frontend', reuse= self._reuse)
+            extract_features_results= self._frontend.build_model(input_tensor= input_tensor, name= 'vgg_frontend', reuse= self._reuse)
 
+            print()
+            print()
+            print()
+            print()
+            print("binary_segment_logits:", extract_features_results['binary_segment_logits']['data'].shape)
+            print("instance_segment_logits:", extract_features_results['instance_segment_logits']['data'].shape)
+            
             #second, apply backend process
             calculated_losses= self._backend.compute_loss(
-                binary_seg_logits= extract_features_results['binary_seg_logits']['data'],
+                binary_seg_logits= extract_features_results['binary_segment_logits']['data'],
                 binary_label= binary_label,
-                instance_seg_logits= extract_features_results['instance_seg_logits']['data'],
+                instance_seg_logits= extract_features_results['instance_segment_logits']['data'],
                 instance_label= instance_label,
                 name= 'vgg_backend',
                 reuse= self._reuse

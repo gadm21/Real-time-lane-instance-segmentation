@@ -1,9 +1,9 @@
 
 import os
 import sys
-sys.path.append(os.getcwd())
 
-from semantic_segmentation_zoo import cnn_basenet, vgg16_based_fcn
+
+from LaneNet.semantic_segmentation_zoo import cnn_basenet, vgg16_based_fcn
 
 
 # this class is mainly used for feature extraction

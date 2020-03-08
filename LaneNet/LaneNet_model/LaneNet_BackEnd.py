@@ -5,8 +5,8 @@ sys.path.append(os.getcwd())
 
 import tensorflow as tf
 import global_config
-import LaneNet_discriminative_loss
-from semantic_segmentation_zoo import cnn_basenet
+from . import LaneNet_discriminative_loss
+from LaneNet.semantic_segmentation_zoo import cnn_basenet
 
 cfg= global_config.cfg
 
@@ -20,7 +20,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
     
     def check_if_net_for_training(self):
 
-        if isinstance(self._phase,, tf.Tensor):
+        if isinstance(self._phase, tf.Tensor):
             phase= self._phase
         else:
             phase= tf.constant(self._phase, dtype= tf.string)
@@ -49,7 +49,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
         return loss
 
     #comptue LaneNet loss
-    @classmethod
+   
     def compute_loss(self, binary_seg_logits, binary_label, 
                             instance_seg_logits, instance_label,
                             name, reuse):
@@ -93,7 +93,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
             with tf.variable_scope(name_or_scope= 'instance_seg'):
 
                 pix_bn= self.layerbn(inputdata= instance_seg_logits, is_training= self._is_training, name= 'pix_bn')
-                pix_relu= self.relu(inputdata= pix_bn, name_'pix_relu')
+                pix_relu= self.relu(inputdata= pix_bn, name='pix_relu')
                 pix_embedding= self.conv2d(
                     inputdata= pix_relu,
                     out_channel= cfg.TRAIN.EMBEDDING_FEATS_DIMS,

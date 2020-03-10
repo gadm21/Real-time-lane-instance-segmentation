@@ -238,6 +238,11 @@ class LaneNetDataFeeder(object):
         tfrecords_file_paths= glob.glob('{:s}/{:s}*.tfrecords'.format(self.tfrecords_dir, self.dataset_flags))
         random.shuffle(tfrecords_file_paths)
 
+        print()
+        print() 
+        print(tfrecords_file_paths)
+        print() 
+
         with tf.name_scope('input_tensor'): #meaning?
 
             dataset= tf.data.TFRecordDataset(tfrecords_file_paths)

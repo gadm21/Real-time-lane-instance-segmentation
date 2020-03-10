@@ -49,16 +49,13 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
         return loss
 
     #comptue LaneNet loss
-   
-    def lines(self, iter):
-        for i in iter:
-            print()
-    
     def compute_loss(self, binary_seg_logits, binary_label, 
                             instance_seg_logits, instance_label,
                             name, reuse):
         
-        lines(4)
+        print()
+        print()
+        print()
         print("part I")
         print("binary_seg_logits:", type(binary_seg_logits), " ", binary_seg_logits.shape)
         print("instance_seg_logits:", type(instance_seg_logits), " ", instance_seg_logits.shape)
@@ -79,7 +76,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                         axis= -1
                 )
                 print("binary_label_onehot:", type(binary_label_onehot), " ", binary_label_onehot.get_shape().as_list())
-                print("TRAIN.CLASSES_NUM:", cfg.TRAIN.CLASSES_NUM)
+                print("TRAIN.CLASSES_NUM:", cfg.TRAIN.CLASSES_NUMS)
 
                 binary_label_plain= tf.reshape(
                     binary_label,
@@ -113,8 +110,8 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
             #________________________________________________________________________________
             #________________________________________________________________________________
             #________________________________________________________________________________
-            print("part II")
-            lines(4)
+            
+            
 
             #calculate class weighted instance segmentation loss
             with tf.variable_scope(name_or_scope= 'instance_seg'):
@@ -128,10 +125,13 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                     use_bias= False,
                     name= 'pix_embedding_conv'
                 )
-                pix_image_shape= (pix_embedding.get_shape().as_list()[1], pix_embedding.get_shape().as_list()[1])
+                pix_image_shape= (pix_embedding.get_shape().as_list()[1], pix_embedding.get_shape().as_list()[2])
                 
+                
+                print() 
+                print() 
+                print() 
                 print("part II")
-                lines(4)
                 instance_segmentation_loss, Lvar, Ldist, Lreg= \
                     LaneNet_discriminative_loss.discriminative_loss(
                         pix_embedding, instance_label, cfg.TRAIN.EMBEDDING_FEATS_DIMS,
@@ -155,7 +155,9 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                     'discriminative_loss': instance_segmentation_loss 
                 }
 
-                lines(4)
+                print() 
+                print() 
+                print() 
                 return ret
 
 

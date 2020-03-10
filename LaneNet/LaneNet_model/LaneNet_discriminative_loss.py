@@ -41,10 +41,16 @@ def discriminative_loss_single(
     param_dist,      #weight for inter cluster distance
     param_reg):      #weight regularization
 
-
+    print()
+    print("discriminative loss single ...")
+    print("prediction:", prediction.shape)
+    print("label:", label.shape)
+    print("feature_dim:", feature_dim)
+    print("label_shape:", label_shape)
 
     label= tf.reshape(label, [label_shape[1] * label_shape[0]])
-    prediction= tf.reshape(prediction, [label_shape[1] * label_shape[0]], feature_dim)
+    print("reshaped label:", label.shape)
+    prediction= tf.reshape(prediction, [label_shape[1] * label_shape[0], feature_dim])
 
     #calculate instance nums
 
@@ -73,7 +79,7 @@ def discriminative_loss_single(
     #calculate Ldist
     mu_interleaved_rep= tf.tile(mu, [num_instances, 1])
     mu_band_rep= tf.tile(mu, [1, num_instances])
-    mu_band_rep= tf.reshape(my_band_rep, (num_instances**2, feature_dim))
+    mu_band_rep= tf.reshape(mu_band_rep, (num_instances**2, feature_dim))
     
     mu_diff= tf.subtract(mu_band_rep, mu_interleaved_rep)
     intermediate_tensor= tf.reduce_sum(tf.abs(mu_diff), axis= 1)

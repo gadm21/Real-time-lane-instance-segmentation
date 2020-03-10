@@ -313,7 +313,7 @@ class CNNBaseModel(object):
         :return:
         """
 
-        return tf.layers.batch_normalization(inputs=inputdata, training=is_training, name=name)
+        return tf.layers.batch_normalization(inputs=inputdata, training= is_training, name=name)
 
     @staticmethod
     def layergn(inputdata, name, group_size=32, esp=1e-5):

@@ -19,7 +19,7 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Set the shadownet training epochs
-__C.TRAIN.EPOCHS = 80010
+__C.TRAIN.EPOCHS = 10 #80010
 # Set the display step
 __C.TRAIN.DISPLAY_STEP = 1
 # Set the test display step during training process
@@ -33,9 +33,9 @@ __C.TRAIN.GPU_MEMORY_FRACTION = 0.95
 # Set the GPU allow growth parameter during tensorflow training process
 __C.TRAIN.TF_ALLOW_GROWTH = True
 # Set the shadownet training batch size
-__C.TRAIN.BATCH_SIZE = 4
+__C.TRAIN.BATCH_SIZE = 1
 # Set the shadownet validation batch size
-__C.TRAIN.VAL_BATCH_SIZE = 4
+__C.TRAIN.VAL_BATCH_SIZE = 1
 # Set the class numbers
 __C.TRAIN.CLASSES_NUMS = 2
 # Set the image height
@@ -61,7 +61,7 @@ __C.TEST.GPU_MEMORY_FRACTION = 0.8
 # Set the GPU allow growth parameter during tensorflow testing process
 __C.TEST.TF_ALLOW_GROWTH = True
 # Set the test batch size
-__C.TEST.BATCH_SIZE = 2
+__C.TEST.BATCH_SIZE = 1
 
 # Test options
 __C.POSTPROCESS = edict()

@@ -13,7 +13,7 @@ import sys
 sys.path.append(os.getcwd())
 import collections
 
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 
 import global_config
 from LaneNet.semantic_segmentation_zoo import cnn_basenet

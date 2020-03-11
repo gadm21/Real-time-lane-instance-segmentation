@@ -96,13 +96,10 @@ def train_LaneNet (dataset_dir, weights_path= None):
         train_cost_time_mean= []
         for epoch in range(train_epochs):
             train_start_time= time.time()
-
-            '''
-            _, train_C, train_accuracy_figure, lr, train_binary_loss, train_instance_loss, train_embeddings, train_binary_seg_images, train_gt_images, train_binary_gt_labels, train_instance_gt_labels /
-            = sess.run([optimizer, train_total_loss, train_accuracy, learning_rate])
-            '''
-
-            _, train_c, train_accuracy_figure, lr, train_binary_loss, train_instance_loss,train_embeddings, train_binary_seg_imgs, train_gt_imgs, train_binary_gt_labels, train_instance_gt_labels = sess.run([optimizer, train_total_loss, train_accuracy, learning_rate, train_binary_seg_loss, train_discriminative_loss, train_pix_embedding, train_prediction, train_images, train_binary_labels, train_instance_labels])            
+            
+            try:    
+                _, train_c, train_accuracy_figure, lr, train_binary_loss, train_instance_loss,train_embeddings, train_binary_seg_imgs, train_gt_imgs, train_binary_gt_labels, train_instance_gt_labels = sess.run([optimizer, train_total_loss, train_accuracy, learning_rate, train_binary_seg_loss, train_discriminative_loss, train_pix_embedding, train_prediction, train_images, train_binary_labels, train_instance_labels])            
+            except tf.errors.InvalidArgumentError: break
 
             print("accuracy:", train_c)
             print("loss:", train_binary_loss)

@@ -16,7 +16,7 @@ print("inverse_weights shape:", inverse_weights.shape.as_list())
 print("logits shape:", logits.shape.as_list())
 
 before_loss_weights= tf.multiply(onehot, inverse_weights)
-loss_weights= tf.reduce_sum(before_loss_weights, axis= 3)
+loss_weights= tf.reduce_sum(before_loss_weights, axis= 2)
 loss= tf.losses.softmax_cross_entropy(onehot_labels= onehot, logits= onehot, weights= loss_weights)
 
 

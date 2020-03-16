@@ -46,6 +46,14 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
             weights=loss_weights
         )
 
+        print()
+        print()
+        print("compute class weighted cross entropy")
+        print("loss_weights shape:", loss_weights.shape.as_list())
+        print("loss shape:", loss.shape.as_list())
+        print()
+        print() 
+
         return loss
 
     #comptue LaneNet loss
@@ -133,6 +141,10 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                 print() 
                 print() 
                 print("part II")
+                print("pix embedding shape:", pix_embedding.shape.as_list())
+                print("instance label shape:", instance_label.shape.as_list())
+                print() 
+                
                 instance_segmentation_loss, Lvar, Ldist, Lreg= \
                     LaneNet_discriminative_loss.discriminative_loss(
                         pix_embedding, instance_label, cfg.TRAIN.EMBEDDING_FEATS_DIMS,

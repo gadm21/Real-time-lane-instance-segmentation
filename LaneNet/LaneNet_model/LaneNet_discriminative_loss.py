@@ -109,6 +109,8 @@ def discriminative_loss_single(
 def discriminative_loss(prediction, correct_label, feature_dim, image_shape,
                         delta_v, delta_d, param_var, param_dist, param_reg):
 
+    print() 
+    print("discriminative loss")
     print("correct_label:", correct_label.shape)
     print("prediction:", prediction.shape)
     print("feature_dim:", feature_dim)

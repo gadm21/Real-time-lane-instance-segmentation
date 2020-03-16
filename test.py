@@ -15,16 +15,20 @@ print("onehot shape:", onehot.shape.as_list())
 print("inverse_weights shape:", inverse_weights.shape.as_list())
 print("logits shape:", logits.shape.as_list())
 
-loss_weights= tf.reduce_sum(tf.multiply(onehot, inverse_weights))
+before_loss_weights= tf.multiply(onehot, inverse_weights)
+loss_weights= tf.reduce_sum(before_loss_weights, axis= 3)
 loss= tf.losses.softmax_cross_entropy(onehot_labels= onehot, logits= onehot, weights= loss_weights)
 
 
 with tf.Session() as sess:
     
     
-    onehot_output, logits_output, unique_labels_output, unique_ids_output, counts_output, inverse_weights_output, inverse_weights_sum_output, \
-    loss_weights_output, loss_output= sess.run([onehot, logits, unique_labels, unique_ids, counts, inverse_weights, inverse_weights_sum, loss_weights, loss])
+    before_loss_weights_output, onehot_output, logits_output, unique_labels_output, unique_ids_output, counts_output, inverse_weights_output, inverse_weights_sum_output, \
+    loss_weights_output, loss_output= sess.run([before_loss_weights, onehot, logits, unique_labels, unique_ids, counts, inverse_weights, inverse_weights_sum, loss_weights, loss])
     
+    print("before_loss_weights shape:", before_loss_weights_output.shape)
+    print("before loss weights:", before_loss_weights_output)
+
     print("onehot:", onehot_output)
     print("logits:", logits_output)
     

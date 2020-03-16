@@ -50,8 +50,14 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             print()
             print()
             print("binary_segment_logits:", extract_features_results['binary_segment_logits']['data'].shape)
+            #binary segment logits shape: (?, 256, 512, 2)
+
             print("instance_segment_logits:", extract_features_results['instance_segment_logits']['data'].shape)
-            
+            #instance segmnet logits shape: (?, 256, 512, 64)
+
+            #binary segment labels shape: (?, 256, 512, 1)
+            #instance segment labels shape: (?, 256, 512, 1)
+
             #second, apply backend process
             calculated_losses= self._backend.compute_loss(
                 binary_seg_logits= extract_features_results['binary_segment_logits']['data'],

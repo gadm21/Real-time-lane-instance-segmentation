@@ -75,6 +75,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                         depth= cfg.TRAIN.CLASSES_NUMS,
                         axis= -1
                 )
+
                 print("binary_label_onehot:", type(binary_label_onehot), " ", binary_label_onehot.get_shape().as_list())
                 print("TRAIN.CLASSES_NUM:", cfg.TRAIN.CLASSES_NUMS)
 
@@ -145,6 +146,10 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                     else:
                         l2_reg_loss= tf.add(l2_reg_loss, tf.nn.l2_loss(vv))
                 l2_reg_loss *= 0.001
+
+
+
+
                 total_loss= binary_segmentation_loss + instance_segmentation_loss + l2_reg_loss
 
                 ret= {

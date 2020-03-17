@@ -2,8 +2,15 @@
 import tensorflow as tf 
 
 
+def get_image_summary(img):
+    if len(img.get_shape().as_list()) == 3:
+        img = tf.expand_dims(img, -1)
 
+    image = img - tf.reduce_min(img)
+    image /= tf.reduce_max(img) - tf.reduce_min(img)
+    image *= 255
 
+    return image
 
 def calculate_model_precision(input_tensor, label_tensor):
     """

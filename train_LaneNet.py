@@ -13,7 +13,7 @@ sys.path.append(os.getcwd())
 
 from LaneNet.data_provider import LaneNet_data_feed_pipeline
 from LaneNet.LaneNet_model import LaneNet
-from evaluate_model import calculate_model_precision, calculate_model_fp, calculate_model_fn
+from evaluate_model import calculate_model_precision, calculate_model_fp, calculate_model_fn, get_image_summary
 import global_config
 cfg= global_config.cfg 
 
@@ -77,8 +77,50 @@ def train_LaneNet (dataset_dir, weights_path= None):
     train_prediction_score= tf.nn.softmax(logits= train_prediction_logits)
     train_prediction= tf.argmax(train_prediction_score, axis= -1)
     train_accuracy= calculate_model_precision(train_prediction_logits, train_binary_labels)
-    train_false_positive= calculate_model_fp(train_prediction_logits, train_binary_labels)
-    train_false_negative= calculate_model_fn(train_prediction_logits, train_binary_labels)
+    train_fp= calculate_model_fp(train_prediction_logits, train_binary_labels)
+    train_fn= calculate_model_fn(train_prediction_logits, train_binary_labels)
+
+
+    #summary
+    train_binary_seg_ret_for_summary = get_image_summary( img=train_prediction )
+    train_embedding_ret_for_summary = get_image_summary( img=train_pix_embedding )
+
+    train_cost_scalar = tf.summary.scalar(
+        name='train_cost', tensor=train_total_loss
+    )
+    train_accuracy_scalar = tf.summary.scalar(
+        name='train_accuracy', tensor=train_accuracy
+    )
+    train_binary_seg_loss_scalar = tf.summary.scalar(
+        name='train_binary_seg_loss', tensor=train_binary_seg_loss
+    )
+    train_instance_seg_loss_scalar = tf.summary.scalar(
+        name='train_instance_seg_loss', tensor=train_discriminative_loss
+    )
+    train_fn_scalar = tf.summary.scalar(
+        name='train_fn', tensor=train_fn
+    )
+    train_fp_scalar = tf.summary.scalar(
+        name='train_fp', tensor=train_fp
+    )
+    train_binary_seg_ret_img = tf.summary.image(
+        name='train_binary_seg_ret', tensor=train_binary_seg_ret_for_summary
+    )
+    train_embedding_feats_ret_img = tf.summary.image(
+        name='train_embedding_feats_ret', tensor=train_embedding_ret_for_summary
+    )
+    train_merge_summary_op = tf.summary.merge(
+        [train_accuracy_scalar, train_cost_scalar, train_binary_seg_loss_scalar,
+            train_instance_seg_loss_scalar, train_fn_scalar, train_fp_scalar,
+            train_binary_seg_ret_img, train_embedding_feats_ret_img]
+    )
+
+
+
+    tboard_save_path = 'tboard/logs'
+    os.makedirs(tboard_save_path, exist_ok=True)
+
+
 
     #set optimizer
     global_step= tf.Variable(0, trainable= False)
@@ -90,6 +132,9 @@ def train_LaneNet (dataset_dir, weights_path= None):
     saver= tf.train.Saver()
     train_epochs= cfg.TRAIN.EPOCHS
     sess= tf.Session()
+    summary_writer = tf.summary.FileWriter(tboard_save_path)
+    summary_writer.add_graph(sess.graph)
+
     with sess.as_default():
         
         sess.run(tf.global_variables_initializer())
@@ -98,9 +143,20 @@ def train_LaneNet (dataset_dir, weights_path= None):
             train_start_time= time.time()
             
             try:    
-                _, train_c, train_accuracy_figure, lr, train_binary_loss, train_instance_loss,train_embeddings, train_binary_seg_imgs, train_gt_imgs, train_binary_gt_labels, train_instance_gt_labels = sess.run([optimizer, train_total_loss, train_accuracy, learning_rate, train_binary_seg_loss, train_discriminative_loss, train_pix_embedding, train_prediction, train_images, train_binary_labels, train_instance_labels])            
+                _, train_c, train_accuracy_figure, lr, train_binary_loss, train_instance_loss,train_embeddings, train_binary_seg_imgs, train_gt_imgs, train_binary_gt_labels, train_instance_gt_labels, train_summary = \
+                    sess.run([optimizer, train_total_loss, train_accuracy, learning_rate, train_binary_seg_loss, train_discriminative_loss, train_pix_embedding, train_prediction, train_images, train_binary_labels, train_instance_labels, train_merge_summary_op])            
             except tf.errors.InvalidArgumentError: break
 
+            summary_writer.add_summary(summary=train_summary, global_step=epoch)
+
+            '''
+            if epoch % 10 == 0:
+                record_training_intermediate_result(
+                    gt_images=train_gt_imgs, gt_binary_labels=train_binary_gt_labels,
+                    gt_instance_labels=train_instance_gt_labels, binary_seg_images=train_binary_seg_imgs,
+                    pix_embeddings=train_embeddings
+                )
+            '''
             print("accuracy:", train_c)
             print("loss:", train_binary_loss)
 

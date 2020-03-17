@@ -64,7 +64,16 @@ def discriminative_loss_single(
     mu= tf.div(segmented_sum, tf.reshape(counts, (-1, 1)))
     mu_expand= tf.gather(mu, unique_id)
 
-    #calculate Lvar
+
+    print() 
+    print()
+    print("segmented_sum:", segmented_sum.shape.as_list())
+    print("mu:", mu.shape.as_list())
+    print("mu_expand:", mu_expand.shape.as_list())
+    print()
+    print() 
+
+    #calculate Lvar                   
     #[|µc − xi| − δv]^2
     distance= tf.norm(tf.subtract(mu_expand, prediction), axis= 1, ord= 1)
     distance= tf.subtract(distance, delta_v)
@@ -138,7 +147,8 @@ def discriminative_loss(prediction, correct_label, feature_dim, image_shape,
     output_dist= tf.TensorArray(dtype= tf.float32, size= 0, dynamic_size= True)
     output_reg= tf.TensorArray(dtype= tf.float32, size= 0, dynamic_size= True)
 
-    _, _, out_loss_op, out_var_op, out_dist_op, out_reg_op, _= tf.while_loop(cond, body, [correct_label, prediction, output_loss, output_var, output_dist, output_reg, 0])
+    _, _, out_loss_op, out_var_op, out_dist_op, out_reg_op, _\
+    = tf.while_loop(cond, body, [correct_label, prediction, output_loss, output_var, output_dist, output_reg, 0])
     
     out_loss_op= out_loss_op.stack()
     out_var_op= out_var_op.stack()

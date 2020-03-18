@@ -191,20 +191,25 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
         with tf.variable_scope(name_or_scope=name, reuse=reuse):
 
             with tf.variable_scope(name_or_scope='binary_seg'):
-                binary_seg_score = tf.nn.softmax(logits=binary_seg_logits)
+                #binary_seg_score = tf.nn.softmax(logits=binary_seg_logits)
+                binary_seg_score= binary_seg_logits 
                 binary_seg_prediction = tf.argmax(binary_seg_score, axis=-1)
+                print() 
+                print("binary_seg_logits:", binary_seg_logits.shape.as_list())
+                print("binary_seg_score:", binary_seg_score.shape.as_list())
+                print("binary_seg_prediction:", binary_seg_prediction.shape.as_list())
+
 
             with tf.variable_scope(name_or_scope='instance_seg'):
 
-                pix_bn = self.layerbn(
-                    inputdata=instance_seg_logits, is_training=self._is_training, name='pix_bn')
+                pix_bn = self.layerbn(inputdata=instance_seg_logits, is_training=self._is_training, name='pix_bn')
                 pix_relu = self.relu(inputdata=pix_bn, name='pix_relu')
                 instance_seg_prediction = self.conv2d(
                     inputdata=pix_relu,
-                    out_channel=CFG.TRAIN.EMBEDDING_FEATS_DIMS,
+                    out_channel=cfg.TRAIN.EMBEDDING_FEATS_DIMS,
                     kernel_size=1,
                     use_bias=False,
                     name='pix_embedding_conv'
                 )
 
-        return binary_seg_prediction, instance_seg_prediction
+        return binary_seg_prediction, instance_seg_prediction, binary_seg_score

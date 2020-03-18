@@ -116,7 +116,16 @@ def train_LaneNet (dataset_dir, weights_path= None):
     )
 
 
+    # set tensorflow saver
+    saver = tf.train.Saver()
+    model_save_dir = 'model'
+    os.makedirs(model_save_dir, exist_ok=True)
+    train_start_time = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
+    model_name = 'tusimple_lanenet_{:s}.ckpt'.format( str(train_start_time))
+    model_save_path = os.path.join(model_save_dir, model_name)
 
+
+    #set tensorboard
     tboard_save_path = 'tboard/logs'
     os.makedirs(tboard_save_path, exist_ok=True)
 
@@ -159,6 +168,11 @@ def train_LaneNet (dataset_dir, weights_path= None):
             '''
             print("accuracy:", train_c)
             print("loss:", train_binary_loss)
+
+        print("saving model")
+        saver.save(sess=sess, save_path=model_save_path, global_step=global_step)
+
+    sess.close()
 
 
 if __name__ == '__main__':

@@ -1,8 +1,22 @@
+
+import cv2
 import numpy as np 
-import tensorflow as tf
 
-c = np.array([[1,2,3,4], [5,6,7,8], [4,3,2,1]])
-print(c.shape)
-new_c= np.reshape(c,  (-1, 1))
+image= np.zeros((102, 100 ), dtype= np.uint8)
 
-print(new_c.shape)
+result= np.copy(image) 
+
+image[10:24, 11:15]= 50
+image[30:40, 90:99]= 100
+
+
+
+_, labels, stats, _= cv2.connectedComponentsWithStats(image, connectivity= 4) 
+
+
+for i, stat in enumerate(stats):
+    idx= np.where(labels==i) 
+    result[idx]= i* 50 + 50
+
+cv2.imwrite("result1.png", image) 
+cv2.imwrite("result2.png", result) 

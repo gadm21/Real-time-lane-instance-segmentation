@@ -1,5 +1,5 @@
 
-
+import pickle
 import numpy as np 
 import tensorflow as tf 
 import os 
@@ -64,7 +64,15 @@ def test_LaneNet(image_path, weights_path):
         binary_seg_image= binary_seg_image[0]
         instance_seg_image= instance_seg_image[0]
     print("result inferred")
-
+    
+    '''
+    with open("binary.pickle", "wb") as binary_dump:
+        pickle.dump(binary_seg_image, binary_dump)
+    
+    with open("instance.pickle", "wb") as instance_dump:
+        pickle.dump(instance_seg_image, instance_dump)
+    '''
+    
     postprocessor = LaneNetPostProcessor()
     postprocessor_result= postprocessor.postprocess(
         source_image= original_copy,
@@ -73,14 +81,16 @@ def test_LaneNet(image_path, weights_path):
     )
     mask_image= postprocessor_result["mask_image"]
     final_result= postprocessor_result["source_image"]
-
+    
+    
     instance_seg_image= np.array( minmax_scale(instance_seg_image), np.uint8)
 
-
+    '''
     cv2.imwrite("binary_seg_image.png", binary_seg_image * 255)
     cv2.imwrite("instance_seg_image.png", instance_seg_image)
     cv2.imwrite("mask_image.png", mask_image) 
     cv2.imwrite("final_result.png", final_result)
+    '''
     print("results saved")
 
 if __name__ == "__main__":

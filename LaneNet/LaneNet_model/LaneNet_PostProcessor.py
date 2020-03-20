@@ -196,7 +196,6 @@ class LaneNetPostProcessor(object):
                 idx= np.where(labels==index) 
                 binary[idx]= 0 
         
-        
         mask_image, lane_coords= self.cluster.apply_lane_features_cluster(
             binary_seg_result= binary,
             instance_seg_result= instance_seg_result

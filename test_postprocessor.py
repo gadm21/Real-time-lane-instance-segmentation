@@ -1,8 +1,13 @@
 
+import os 
+import sys 
+sys.path.append(os.getcwd())
 
 import numpy as np 
 import cv2 
 import pickle 
+
+from LaneNet.LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
 
 def load_images():
     
@@ -20,15 +25,18 @@ def load_images():
 def test_postprocessor():
 
     source, binary, instance= load_images()
+    postprocessor= LaneNetPostProcessor()
+    ret= postprocessor.postprocess(binary, instance, source) 
 
-    print("source shape:", source.shape)
-    print("binary shape:", binary.shape) 
-    print("instance shape:", instance.shape) 
-
-
+    cv2.imshow("R", ret) 
+    cv2.imshow("J", np.array(binary * 255, dtype= np.uint8)) 
+    cv2.waitKey(0) 
+    cv2.destroyAllWindows() 
+    
 
 
 
 
 if __name__ == "__main__":
     test_postprocessor()
+    print("done") 

@@ -13,6 +13,21 @@ from sklearn.preprocessing import StandardScaler
 import global_config 
 cfg= global_config.cfg 
 
+def draw_beautiful_circles(image, lane_pts, start_y, colors):
+
+    for index, single_lane_pts in enumerate(lane_pts):
+        xs = np.array(single_lane_pts, dtype=np.float32)[:, 0]
+        ys = np.array(single_lane_pts, dtype=np.float32)[:, 1]
+        idx= np.where(ys >= start_y) 
+        ys= ys[idx]
+        xs= xs[idx]
+
+        thickness= 7
+        points= len(xs) 
+        for i, y in enumerate(ys):
+            
+            new_thickness= int(thickness * (i / points))
+            cv2.circle(image, (xs[i], y), new_thickness, colors[min(index+1, len(colors)-1)], -1 )
 
 #morphological process fills the holes in the binary segmentation result
 def morphological_process(image, kernel_size= 5):
@@ -94,7 +109,7 @@ class LaneCluster(object):
     def get_lane_embedding_features(binary, instance):
         
         #lane_embedding_features are the values in the instance_seg_image on the lanes coords
-        idx= np.where(binary==255) 
+        idx= np.where(binary == 255)
         lane_embedding_features= instance[idx]
         lane_coordinates= np.vstack((idx[1], idx[0])).transpose()
         return lane_embedding_features, lane_coordinates
@@ -108,15 +123,15 @@ class LaneCluster(object):
             features= StandardScaler().fit_transform(lane_embedding_features)
             db.fit(features)
         except Exception as e:
-            print("clustering error: {:s}".format(e))
+            print("clustering error")
             return None, None, None, None
         
         db_labels= db.labels_
         unique_labels= np.unique(db_labels) 
-        num_clusters= len(unique_labels)
-        cluster_centers= db.components_
+        #num_clusters= len(unique_labels)
+        #cluster_centers= db.components_
 
-        return db_labels, unique_labels, num_clusters, cluster_centers
+        return db_labels, unique_labels #, num_clusters, cluster_centers
 
 
     def apply_lane_features_cluster(self, binary_seg_result, instance_seg_result):
@@ -126,8 +141,7 @@ class LaneCluster(object):
              self.get_lane_embedding_features( binary_seg_result, instance_seg_result)
         
         #apply dbscan cluster
-        db_labels, unique_labels, num_clusters, cluster_centers =\
-             self.embedding_features_dbscan_cluster(lane_embedding_features)
+        db_labels, unique_labels= self.embedding_features_dbscan_cluster(lane_embedding_features)
         assert db_labels is not None 
 
         mask= np.zeros((binary_seg_result.shape[0], binary_seg_result.shape[1], 3), np.uint8)
@@ -183,18 +197,22 @@ class LaneNetPostProcessor(object):
 
     def postprocess(self, binary_seg_result, instance_seg_result, source_image, data_source= "tusimple"):
         
+        intermediate_path= "images/intermediate"
+        os.makedirs(intermediate_path, exist_ok=True) 
+
         #convert binary_seg_result range from [0, 1] to [0, 255]
         binary= np.array(binary_seg_result * 255, dtype= np.uint8) 
 
         #apply morophology operation to fill in holes
         binary= morphological_process(binary) 
 
-        _, labels, stats, _= connect_components_analysis(binary)
+        _, labels, stats, _= connect_components_analysis(binary)    
         min_area_threshold= 100
         for index, stat in enumerate(stats):
             if stat[4] <= min_area_threshold:
                 idx= np.where(labels==index) 
                 binary[idx]= 0 
+                
         
         mask_image, lane_coords= self.cluster.apply_lane_features_cluster(
             binary_seg_result= binary,
@@ -207,11 +225,10 @@ class LaneNetPostProcessor(object):
         fit_params= []
         src_lane_pts= []
         for lane_index, coordinates in enumerate(lane_coords):
-            if data_source=="tusimple":
-                tmp_mask = np.zeros(shape=(720, 1280), dtype=np.uint8)
-                tmp_mask[tuple((np.int_(coordinates[:, 1] * 720 / 256), np.int_(coordinates[:, 0] * 1280 / 512)))] = 255
-            else: raise ValueError("wrong data_source, only supporting tusimple")
-
+            tmp_mask = np.zeros(shape=(720, 1280), dtype=np.uint8)
+            idx= tuple((np.int_(coordinates[:, 1] * 720 / 256), np.int_(coordinates[:, 0] * 1280 / 512)))
+            tmp_mask[idx] = 255
+            
             tmp_ipm_mask= cv2.remap(tmp_mask, self.remap_to_ipm_x, self.remap_to_ipm_y, interpolation= cv2.INTER_NEAREST)
 
             nonzero_y= tmp_ipm_mask.nonzero()[0]
@@ -222,72 +239,64 @@ class LaneNetPostProcessor(object):
 
             [ipm_image_height, ipm_image_width]= tmp_ipm_mask.shape
             plot_y= np.linspace(10, ipm_image_height, ipm_image_height-10)
-            fit_x= lane_parameters[0] * plot_y**2 +\
-                    lane_parameters[1] * plot_y +\
-                    lane_parameters[2]
-
+            fit_x= lane_parameters[0] * plot_y**2 + lane_parameters[1] * plot_y + lane_parameters[2]
 
             lane_pts = []
             for index in range(0, plot_y.shape[0], 5):
-                src_x = self.remap_to_ipm_x[
-                    int(plot_y[index]), int(np.clip(fit_x[index], 0, ipm_image_width - 1))]
-                if src_x <= 0:
-                    continue
-                src_y = self.remap_to_ipm_y[
-                    int(plot_y[index]), int(np.clip(fit_x[index], 0, ipm_image_width - 1))]
+                src_x = self.remap_to_ipm_x[ int(plot_y[index]), int(np.clip(fit_x[index], 0, ipm_image_width - 1))]
+                if src_x <= 0: continue
+
+                src_y = self.remap_to_ipm_y[ int(plot_y[index]), int(np.clip(fit_x[index], 0, ipm_image_width - 1))]
                 src_y = src_y if src_y > 0 else 0
 
                 lane_pts.append([src_x, src_y])
 
             src_lane_pts.append(lane_pts)
-
+            
         # tusimple test data sample point along y axis every 10 pixels
         source_image_width = source_image.shape[1]
         
-        for index, single_lane_pts in enumerate(src_lane_pts):
-            single_lane_pt_x = np.array(single_lane_pts, dtype=np.float32)[:, 0]
-            single_lane_pt_y = np.array(single_lane_pts, dtype=np.float32)[:, 1]
-            if data_source == 'tusimple':
-                start_plot_y = 240
-                end_plot_y = 720
-            elif data_source == 'beec_ccd':
-                start_plot_y = 820
-                end_plot_y = 1350
-            else:
-                raise ValueError('Wrong data source now only support tusimple and beec_ccd')
-            step = int(math.floor((end_plot_y - start_plot_y) / 10))
-            for plot_y in np.linspace(start_plot_y, end_plot_y, step):
-                diff = single_lane_pt_y - plot_y
-                fake_diff_bigger_than_zero = diff.copy()
-                fake_diff_smaller_than_zero = diff.copy()
-                fake_diff_bigger_than_zero[np.where(diff <= 0)] = float('inf')
-                fake_diff_smaller_than_zero[np.where(diff > 0)] = float('-inf')
-                idx_low = np.argmax(fake_diff_smaller_than_zero)
-                idx_high = np.argmin(fake_diff_bigger_than_zero)
+        start_plot_y= 300
+        colors= [self.color_map[index].tolist() for index in range(len(src_lane_pts))]
+        draw_beautiful_circles(source_image, src_lane_pts, start_plot_y, colors)
+            
+        '''
 
-                previous_src_pt_x = single_lane_pt_x[idx_low]
-                previous_src_pt_y = single_lane_pt_y[idx_low]
-                last_src_pt_x = single_lane_pt_x[idx_high]
-                last_src_pt_y = single_lane_pt_y[idx_high]
+        step = int(math.floor((end_plot_y - start_plot_y) / 1))
+        for plot_y in np.linspace(start_plot_y, end_plot_y, step):
+            diff = single_lane_pt_y - plot_y
+            fake_diff_bigger_than_zero = diff.copy()
+            fake_diff_smaller_than_zero = diff.copy()
+            fake_diff_bigger_than_zero[np.where(diff <= 0)] = float('inf')
+            fake_diff_smaller_than_zero[np.where(diff > 0)] = float('-inf')
+            idx_low = np.argmax(fake_diff_smaller_than_zero)
+            idx_high = np.argmin(fake_diff_bigger_than_zero)
 
-                if previous_src_pt_y < start_plot_y or last_src_pt_y < start_plot_y or \
-                        fake_diff_smaller_than_zero[idx_low] == float('-inf') or \
-                        fake_diff_bigger_than_zero[idx_high] == float('inf'):
-                    continue
+            previous_src_pt_x = single_lane_pt_x[idx_low]
+            previous_src_pt_y = single_lane_pt_y[idx_low]
+            last_src_pt_x = single_lane_pt_x[idx_high]
+            last_src_pt_y = single_lane_pt_y[idx_high]
 
-                interpolation_src_pt_x = (abs(previous_src_pt_y - plot_y) * previous_src_pt_x +
-                                          abs(last_src_pt_y - plot_y) * last_src_pt_x) / \
-                                         (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
-                interpolation_src_pt_y = (abs(previous_src_pt_y - plot_y) * previous_src_pt_y +
-                                          abs(last_src_pt_y - plot_y) * last_src_pt_y) / \
-                                         (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
+            if previous_src_pt_y < start_plot_y or last_src_pt_y < start_plot_y or \
+                    fake_diff_smaller_than_zero[idx_low] == float('-inf') or \
+                    fake_diff_bigger_than_zero[idx_high] == float('inf'):
+                continue
 
-                if interpolation_src_pt_x > source_image_width or interpolation_src_pt_x < 10:
-                    continue
+            interpolation_src_pt_x = (abs(previous_src_pt_y - plot_y) * previous_src_pt_x +
+                                        abs(last_src_pt_y - plot_y) * last_src_pt_x) / \
+                                        (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
+            interpolation_src_pt_y = (abs(previous_src_pt_y - plot_y) * previous_src_pt_y +
+                                        abs(last_src_pt_y - plot_y) * last_src_pt_y) / \
+                                        (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
 
-                lane_color = self.color_map[index].tolist()
-                cv2.circle(source_image, (int(interpolation_src_pt_x),
-                                          int(interpolation_src_pt_y)), 5, lane_color, -1)
+            if interpolation_src_pt_x > source_image_width or interpolation_src_pt_x < 10:
+                continue
+
+            lane_color = self.color_map[index].tolist()
+            cv2.circle(source_image, (int(interpolation_src_pt_x),
+                                        int(interpolation_src_pt_y)), 5, lane_color, -1)
+            '''
+        
         ret = {
             'mask_image': mask_image,
             'fit_params': fit_params,

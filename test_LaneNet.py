@@ -85,12 +85,12 @@ def test_LaneNet(image_path, weights_path):
     
     instance_seg_image= np.array( minmax_scale(instance_seg_image), np.uint8)
 
-    '''
+    
     cv2.imwrite("binary_seg_image.png", binary_seg_image * 255)
     cv2.imwrite("instance_seg_image.png", instance_seg_image)
     cv2.imwrite("mask_image.png", mask_image) 
     cv2.imwrite("final_result.png", final_result)
-    '''
+    
     print("results saved")
 
 if __name__ == "__main__":

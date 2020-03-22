@@ -27,12 +27,8 @@ def test_postprocessor():
     source, binary, instance= load_images()
     postprocessor= LaneNetPostProcessor()
     ret= postprocessor.postprocess(binary, instance, source) 
-
-    cv2.imshow("R", ret) 
-    cv2.imshow("J", np.array(binary * 255, dtype= np.uint8)) 
-    cv2.waitKey(0) 
-    cv2.destroyAllWindows() 
     
+    cv2.imwrite("final_result.png", ret['source_image'])
 
 
 

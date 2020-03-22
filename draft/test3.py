@@ -1,22 +1,13 @@
 
 import cv2
 import numpy as np 
+from sklearn.cluster import DBSCAN
 
-image= np.zeros((102, 100 ), dtype= np.uint8)
+arr= np.array([[1, 2], [2, 2], [2, 3], [8, 7], [8, 8], [25, 80]])
 
-result= np.copy(image) 
+db= DBSCAN(eps= 3, min_samples=2)
 
-image[10:24, 11:15]= 50
-image[30:40, 90:99]= 100
+ret= db.fit(arr) 
 
+print(ret.components_) 
 
-
-_, labels, stats, _= cv2.connectedComponentsWithStats(image, connectivity= 4) 
-
-
-for i, stat in enumerate(stats):
-    idx= np.where(labels==i) 
-    result[idx]= i* 50 + 50
-
-cv2.imwrite("result1.png", image) 
-cv2.imwrite("result2.png", result) 

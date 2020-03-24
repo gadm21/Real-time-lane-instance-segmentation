@@ -42,7 +42,6 @@ def get_hist(image):
     end_h = int(0.9 * h) 
     return np.sum(image[start_h:end_h, :], axis= 0) 
 
-
 def truncate_tumor(image):
 
     def get_min_max_points():
@@ -79,32 +78,98 @@ def truncate_tumor(image):
 
     pass
 
+class Lane(object):
+
+    def __init__(self, cluster_pts):
+        self.clusters= [cluster_pts]
+        self.mean= self.calculate_mean()
+
+    def calculate_mean(self):
+        return (int(np.mean(cluster_pts[0])), int(np.mean(cluster_pts[1])))
+
+    def clean(image):
+        pass 
+        
+def distance(lane, cluster_pts):
+    c_mean= (int(np.mean(cluster_pts[0])), int(np.mean(cluster_pts[1])))
+    l_mean= lane.mean 
+
+    y_abs= np.abs(c_mean[0]-l_mean[0])
+    x_abs= np.abs(c_mean[1]-l_mean[1])
+
+    return np.sqrt(y_abs**2 + x_abs**2) 
 
 def process(image):
 
     image= morphological_process(image) 
     image= remove_noise(image)
+    new_image= np.copy(image) 
 
     image_h= image.shape[0]
     idx= np.where(image == 255) 
     ys, xs= idx[0], idx[1]
     minn= np.min(ys) 
     window_h= int((image_h - minn) * 0.05)
-    db= DBSCAN(eps= 5, min_samples= 10)
+    db= DBSCAN(eps= 5, min_samples= 25)
 
 
     lanes= [] 
+    distance_threshold= 2 * window_h
     for h in range(minn, image_h - window_h, window_h):
         inv_h= image_h - h + minn
-        target= (ys > inv_h - window_h) & (ys < inv_h) 
+        target= (ys >= inv_h - window_h) & (ys < inv_h) 
         target_xs, target_ys= xs[target], ys[target]
         target_pix= (target_ys, target_xs) 
         
         ret= db.fit(np.array(target_pix).transpose()) 
-        
-        
-        
+        labels= ret.labels_
+        unique_labels= np.unique(labels) 
+        for label in unique_labels:
+            cluster_idx= np.where(labels==label)
+            cluster_xs, cluster_ys= target_xs[cluster_idx], target_ys[cluster_idx] 
+            cluster_pts= (cluster_ys, cluster_xs) 
+            
+            cluster_added= False
+            for lane in lanes:
+                if distance(lane, cluster_pts) < distance_threshold:
+                    lane.add(cluster_pts)
+            
+            if not cluster_added: 
+                new_lane= Lane(cluster_pts) 
+                image= new_lane.clean(image) 
+                lanes.append(new_lane) 
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -120,14 +185,11 @@ labels= ret.labels_
 labels[ labels < 0 ]= 1
 '''
 
-
-
 if __name__ == "__main__":
 
     image= cv2.imread(os.path.join(image_path, 'binary.png'), cv2.COLOR_BGR2GRAY)
     process(image)
     
-
 
 
 

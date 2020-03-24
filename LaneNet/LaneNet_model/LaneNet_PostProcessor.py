@@ -54,42 +54,6 @@ def connect_components_analysis(image):
     return cv2.connectedComponentsWithStats(gray_image, connectivity= 8, ltype= cv2.CV_32S)
 
 
-class Lane(object):
-
-    def __init__(self, feat, coord, class_id= -1):
-        self._feat= feat
-        self._coord= coord 
-        self._class_id= class_id 
-    
-    @property
-    def feat(self):
-        return self._feat
-    
-    @property
-    def coord(self):
-        return self._coord 
-    
-    @property 
-    def class_id(self):
-        return self._class_id 
-    
-    @feat.setter
-    def feat(self, value):
-        if not isinstance(value, np.ndarray) or value.dtype != np.float64:
-            value= np.array(value, np.float64)
-        self._feat= value
-    
-    @coord.setter
-    def coord(self, value):
-        if not isinstance(value, np.ndarray) or value.dtype != np.int32:
-            value= np.array(value, np.int32) 
-        self._coord= value
-    
-    @class_id.setter    
-    def class_id(self, value):
-        assert isinstance(value, np.int64), "class id must be integer"
-        self._class_id= value
-    
 
 
 class LaneCluster(object):
@@ -206,6 +170,8 @@ class LaneNetPostProcessor(object):
         #apply morophology operation to fill in holes
         binary= morphological_process(binary) 
 
+
+
         _, labels, stats, _= connect_components_analysis(binary)    
         min_area_threshold= 100
         for index, stat in enumerate(stats):
@@ -308,5 +274,43 @@ class LaneNetPostProcessor(object):
 
 
         
+
+class LaneNetAdvancedPostProcessor(object):
+
+    def __init__(self, ipm_remap_file_path= 'tusimple_ipm_remap.yml'):
+
+        assert os.path.exists(ipm_remap_file_path), "{:s} doesnot exist".format(ipm_remap_file_path)
+        remap_file= self.load_remap_matrix(ipm_remap_file_path) 
+
+    def load_remap_matrix(self, ipm_remap_file_path):
+        fs= cv2.FileStorage(ipm_remap_file_path, cv2.FILE_STORAGE_READ)
+
+        self.remap_to_ipm_x= fs.getNode('remap_ipm_x').mat() 
+        self.remap_to_ipm_y= fs.getNode('remap_ipm_y').mat() 
+
+        gs.release() 
+
+    def smart_cluster(binary):
+
+        def get_hist(image):
+            return np.sum(image[image.shape[0]//2:, :], axis=0)
+    
+        
+
+    def postprocess(self, binary, source):
+        intermediate_path= 'images/intermediate'
+        os.makedirs(intermediate_path, exist_ok= True) 
+
+        binary= np.array(binary* 255, dtype= np.uint8) 
+
+        binary= morphological_process(binary) 
+
+        _, stats, labels, _= connect_components_analysis(binary)
+        min_area_threshold= 100
+        for index, stat in enumerate(stats):
+            if stat[4] < min_area_threshold: 
+                binary[labels==index] = 0
+
+        lanes_coordinates= self.smart_cluster(binary)
 
 

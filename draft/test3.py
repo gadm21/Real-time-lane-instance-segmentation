@@ -91,15 +91,13 @@ def process(image):
     minn= np.min(ys) 
     window_h= int((image_h - minn) * 0.05)
     db= DBSCAN(eps= 5, min_samples= 10)
-    lanes= [] 
 
-    counter=0
+
+    lanes= [] 
     for h in range(minn, image_h - window_h, window_h):
-        counter+= 1
         inv_h= image_h - h + minn
         target= (ys > inv_h - window_h) & (ys < inv_h) 
-        target_xs= xs[target]
-        target_ys= ys[target]
+        target_xs, target_ys= xs[target], ys[target]
         target_pix= (target_ys, target_xs) 
         
         ret= db.fit(np.array(target_pix).transpose()) 

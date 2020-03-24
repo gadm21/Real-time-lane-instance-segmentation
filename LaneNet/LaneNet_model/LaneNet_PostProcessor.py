@@ -272,9 +272,6 @@ class LaneNetPostProcessor(object):
         return ret
 
 
-
-        
-
 class LaneNetAdvancedPostProcessor(object):
 
     def __init__(self, ipm_remap_file_path= 'tusimple_ipm_remap.yml'):

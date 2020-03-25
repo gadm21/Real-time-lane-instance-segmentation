@@ -83,12 +83,57 @@ class Lane(object):
     def __init__(self, cluster_pts):
         self.clusters= [cluster_pts]
         self.mean= self.calculate_mean()
+        self.lane_xs= []
+        self.lane_ys= []
+
+    def check(self, image):
+        new_image= np.copy(image) 
+        cv2.circle(new_image, (self.mean[1], self.mean[0]), 5, 255, 3)
+        cv2.circle(new_image, (self.mean[1], self.mean[0]), 10, 255, 3)
+        
+        cv2.imshow('check', new_image) 
+        cv2.waitKey(0) 
+        cv2.destroyAllWindows()
 
     def calculate_mean(self):
-        return (int(np.mean(cluster_pts[0])), int(np.mean(cluster_pts[1])))
+        return (int(np.mean(self.clusters[-1][0])), int(np.mean(self.clusters[-1][1])))
 
-    def clean(image):
-        pass 
+    def clean(self, image, minn, window_h, start_h, xs, ys, window_w= 10, margin= 2):
+        
+        #image= cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) 
+        mean= self.mean[1] 
+        for h in range(start_h, minn, -window_h):
+            target= (ys >= h - window_h) & (ys < h) #& (xs > (mean - window_w)) & (xs < (mean + window_w))
+            target_xs, target_ys= xs[target], ys[target]
+            
+            cluster_mean= np.mean(target_xs)
+            mean= cluster_mean
+
+            image[(target_ys, target_xs)]= 0
+            continue 
+
+            
+            print("left:", cluster_mean) 
+            left_margin= int(cluster_mean + margin)
+            right_margin= int(cluster_mean - margin) 
+            
+            out= (target_xs < right_margin) & (target_xs > left_margin) 
+            print(np.count_nonzero(out), end=" ")
+            out_ys, out_xs= target_ys[out], target_xs[out]
+            
+            image[(out_ys, out_xs)]=0
+            #image[(saved_ys, saved_xs)]=255
+        return image
+        
+        
+    def add(self, cluster):
+        self.clusters.append(cluster) 
+
+    def color(self, image) :
+        for cluster in self.clusters:
+            image[cluster]= [255, 255, 0]
+        
+
         
 def distance(lane, cluster_pts):
     c_mean= (int(np.mean(cluster_pts[0])), int(np.mean(cluster_pts[1])))
@@ -103,43 +148,61 @@ def process(image):
 
     image= morphological_process(image) 
     image= remove_noise(image)
-    new_image= np.copy(image) 
 
     image_h= image.shape[0]
     idx= np.where(image == 255) 
     ys, xs= idx[0], idx[1]
     minn= np.min(ys) 
-    window_h= int((image_h - minn) * 0.05)
-    db= DBSCAN(eps= 5, min_samples= 25)
+    window_h= int((image_h - minn) *    0.01)
+    db= DBSCAN(eps= 10, min_samples= 10)
 
 
     lanes= [] 
-    distance_threshold= 2 * window_h
-    for h in range(minn, image_h - window_h, window_h):
-        inv_h= image_h - h + minn
-        target= (ys >= inv_h - window_h) & (ys < inv_h) 
+    distance_threshold= 4 * window_h
+    for h in range(image_h, minn, -window_h):
+        idx= np.where(image == 255) 
+        ys, xs= idx[0], idx[1]
+        target= (ys >= h - window_h) & (ys < h) 
         target_xs, target_ys= xs[target], ys[target]
+        if len(target_xs) == 0: continue 
         target_pix= (target_ys, target_xs) 
         
         ret= db.fit(np.array(target_pix).transpose()) 
         labels= ret.labels_
         unique_labels= np.unique(labels) 
+        print(image[target_pix])
+        print() 
+        print(labels) 
+        print() 
+        print(unique_labels) 
+        print()
+
         for label in unique_labels:
+            if label == -1: continue 
             cluster_idx= np.where(labels==label)
             cluster_xs, cluster_ys= target_xs[cluster_idx], target_ys[cluster_idx] 
             cluster_pts= (cluster_ys, cluster_xs) 
             
-            cluster_added= False
-            for lane in lanes:
-                if distance(lane, cluster_pts) < distance_threshold:
-                    lane.add(cluster_pts)
+            new_lane= Lane(cluster_pts) 
+            new_lane.check(image) 
+            image= new_lane.clean(image, minn, window_h, h, xs, ys) 
+            lanes.append(new_lane)
+
+        image= remove_noise(image) 
+        cv2.imshow("after each height", image)
+        cv2.waitKey(0) 
+        cv2.destroyAllWindows()
             
-            if not cluster_added: 
-                new_lane= Lane(cluster_pts) 
-                image= new_lane.clean(image) 
-                lanes.append(new_lane) 
-
-
+    
+    
+    image= cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) 
+    for lane in lanes:
+        lane.color(image) 
+    '''
+    cv2.imshow("R", image) 
+    cv2.waitKey(0) 
+    cv2.destroyAllWindows()
+    '''
 
 
     
@@ -189,7 +252,6 @@ if __name__ == "__main__":
 
     image= cv2.imread(os.path.join(image_path, 'binary.png'), cv2.COLOR_BGR2GRAY)
     process(image)
-    
 
 
 

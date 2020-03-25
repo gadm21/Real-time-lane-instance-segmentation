@@ -13,6 +13,7 @@ def test():
     pp= PostProcessor()
     new_image= pp.post_process(image) 
     
+    show_image(new_image) 
     save_image('results', 'final', new_image) 
 
 

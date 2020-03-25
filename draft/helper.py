@@ -132,12 +132,12 @@ class Lane(object):
         for window in range(highest_lane_coord, lowest_lane_coord, - self.window_h):
             m= self.mean()
             if m : window_center= m
-            window_w= self.cluster_width()
+            margin= int(self.cluster_width())
 
             window_pix= (lanes_coords[0] >= window - self.window_h) & \
                         (lanes_coords[0] < window) & \
-                        (lanes_coords[1] > (window_center - window_w)) & \
-                        (lanes_coords[1] < (window_center + window_w))
+                        (lanes_coords[1] > (window_center - margin)) & \
+                        (lanes_coords[1] < (window_center + margin))
             lane_coords_within_window = (lanes_coords[0][window_pix], lanes_coords[1][window_pix])
             if lane_coords_within_window[0].shape[0] == 0 : continue  
 

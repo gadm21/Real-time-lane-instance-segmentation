@@ -8,18 +8,15 @@ from helper import *
 
 def test():
 
-    image= read_image('images/binary.png')
-    
+    binary= read_image('results/binary1.png')
+    source= read_image("results/source1.jpg")
+
     pp= PostProcessor()
-    new_image= pp.post_process(image) 
+    mask, ipm_mask= pp.post_process(binary, source)  
     
-    show_image(new_image) 
-    save_image('results', 'final', new_image) 
-
-
-
-
-
+    save_image('results', 'test', mask) 
+    save_image('results', 'test2', ipm_mask) 
+    print("done")
 
 
 

@@ -219,49 +219,51 @@ class LaneNetPostProcessor(object):
 
             src_lane_pts.append(lane_pts)
             
+
+
+
         # tusimple test data sample point along y axis every 10 pixels
-        source_image_width = source_image.shape[1]
-        
-        start_plot_y= 300
-        colors= [self.color_map[index].tolist() for index in range(len(src_lane_pts))]
-        draw_beautiful_circles(source_image, src_lane_pts, start_plot_y, colors)
+        source_image_width = source_image.shape[1]     
+        for index, single_lane_pts in enumerate(src_lane_pts):
+            single_lane_pt_x= np.array(single_lane_pts, dtype= np.float32)[:, 0]
+            single_lane_pt_y= np.array(single_lane_pts, dtype= np.float32)[:, 1]
+            start_plot_y= 240
+            end_plot_y= 720
+
+            step = int(math.floor((end_plot_y - start_plot_y) / 1))
+            for plot_y in np.linspace(start_plot_y, end_plot_y, step):
+                diff = single_lane_pt_y - plot_y
+                fake_diff_bigger_than_zero = diff.copy()
+                fake_diff_smaller_than_zero = diff.copy()
+                fake_diff_bigger_than_zero[np.where(diff <= 0)] = float('inf')
+                fake_diff_smaller_than_zero[np.where(diff > 0)] = float('-inf')
+                idx_low = np.argmax(fake_diff_smaller_than_zero)
+                idx_high = np.argmin(fake_diff_bigger_than_zero)
+
+                previous_src_pt_x = single_lane_pt_x[idx_low]
+                previous_src_pt_y = single_lane_pt_y[idx_low]
+                last_src_pt_x = single_lane_pt_x[idx_high]
+                last_src_pt_y = single_lane_pt_y[idx_high]
+
+                if previous_src_pt_y < start_plot_y or last_src_pt_y < start_plot_y or \
+                        fake_diff_smaller_than_zero[idx_low] == float('-inf') or \
+                        fake_diff_bigger_than_zero[idx_high] == float('inf'):
+                    continue
+
+                interpolation_src_pt_x = (abs(previous_src_pt_y - plot_y) * previous_src_pt_x +
+                                            abs(last_src_pt_y - plot_y) * last_src_pt_x) / \
+                                            (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
+                interpolation_src_pt_y = (abs(previous_src_pt_y - plot_y) * previous_src_pt_y +
+                                            abs(last_src_pt_y - plot_y) * last_src_pt_y) / \
+                                            (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
+
+                if interpolation_src_pt_x > source_image_width or interpolation_src_pt_x < 10:
+                    continue
+
+                lane_color = self.color_map[index].tolist()
+                cv2.circle(source_image, (int(interpolation_src_pt_x),
+                                            int(interpolation_src_pt_y)), 5, lane_color, -1)
             
-        '''
-
-        step = int(math.floor((end_plot_y - start_plot_y) / 1))
-        for plot_y in np.linspace(start_plot_y, end_plot_y, step):
-            diff = single_lane_pt_y - plot_y
-            fake_diff_bigger_than_zero = diff.copy()
-            fake_diff_smaller_than_zero = diff.copy()
-            fake_diff_bigger_than_zero[np.where(diff <= 0)] = float('inf')
-            fake_diff_smaller_than_zero[np.where(diff > 0)] = float('-inf')
-            idx_low = np.argmax(fake_diff_smaller_than_zero)
-            idx_high = np.argmin(fake_diff_bigger_than_zero)
-
-            previous_src_pt_x = single_lane_pt_x[idx_low]
-            previous_src_pt_y = single_lane_pt_y[idx_low]
-            last_src_pt_x = single_lane_pt_x[idx_high]
-            last_src_pt_y = single_lane_pt_y[idx_high]
-
-            if previous_src_pt_y < start_plot_y or last_src_pt_y < start_plot_y or \
-                    fake_diff_smaller_than_zero[idx_low] == float('-inf') or \
-                    fake_diff_bigger_than_zero[idx_high] == float('inf'):
-                continue
-
-            interpolation_src_pt_x = (abs(previous_src_pt_y - plot_y) * previous_src_pt_x +
-                                        abs(last_src_pt_y - plot_y) * last_src_pt_x) / \
-                                        (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
-            interpolation_src_pt_y = (abs(previous_src_pt_y - plot_y) * previous_src_pt_y +
-                                        abs(last_src_pt_y - plot_y) * last_src_pt_y) / \
-                                        (abs(previous_src_pt_y - plot_y) + abs(last_src_pt_y - plot_y))
-
-            if interpolation_src_pt_x > source_image_width or interpolation_src_pt_x < 10:
-                continue
-
-            lane_color = self.color_map[index].tolist()
-            cv2.circle(source_image, (int(interpolation_src_pt_x),
-                                        int(interpolation_src_pt_y)), 5, lane_color, -1)
-            '''
         
         ret = {
             'mask_image': mask_image,

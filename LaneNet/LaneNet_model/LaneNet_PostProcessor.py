@@ -274,6 +274,8 @@ class LaneNetPostProcessor(object):
         return ret
 
 
+
+'''
 class LaneNetAdvancedPostProcessor(object):
 
     def __init__(self, ipm_remap_file_path= 'tusimple_ipm_remap.yml'):
@@ -312,4 +314,4 @@ class LaneNetAdvancedPostProcessor(object):
 
         lanes_coordinates= self.smart_cluster(binary)
 
-
+'''

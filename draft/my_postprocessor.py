@@ -62,17 +62,6 @@ def resize_image(image, new_size):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 class Lane(object):
 
     def __init__(self, id=0):

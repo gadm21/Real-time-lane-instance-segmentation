@@ -59,6 +59,9 @@ def morphological_process(image, kernel_size= 5):
 def resize_image(image, new_size):
     return cv2.resize(image, new_size)
 
+def normalize(image):
+    return image / 127.5 - 1.0
+
 
 
 
@@ -169,20 +172,17 @@ class Lane(object):
         return image 
              
     def load_remap_matrix(self, remap_file_path):
-        if not os.path.exists(remap_file_path):
-            return False
+
+        assert os.path.exists(remap_file_path), "remap file doesnot exist"
 
         fs= cv2.FileStorage(remap_file_path, cv2.FILE_STORAGE_READ)
-
         self.remap_to_x= fs.getNode('remap_ipm_x').mat() 
         self.remap_to_y= fs.getNode('remap_ipm_y').mat()
-
         fs.release() 
-
-        return True 
+        
         
 
-    def fit(self, remap_file_path):
+    def fit(self, remap_file_path = None):
         mask= self.draw_mask(color_means= True) 
 
         if self.load_remap_matrix(remap_file_path):
@@ -239,9 +239,8 @@ class PostProcessor(object):
         unique_labels= np.unique(labels) 
         return labels, unique_labels 
 
-    def post_process(self, binary, source):
-        
-        source= resize_image(source, (binary.shape[1], binary.shape[0]))
+    def process(self, binary):
+
         image= self.pre_processing(binary) 
 
         image_h, image_w = image.shape
@@ -270,18 +269,7 @@ class PostProcessor(object):
                 
         self.inspect_lanes(lanes) 
         
-        for lane in lanes:
-            if not lane.valid: 
-                continue  
-            m, i= lane.fit('tusimple_ipm_remap.yml')
-            show_image(m, label= str(lane.id))
-            show_image(i, label= str(lane.id))
-            mask |= m
-            ipm_mask |= i
-            
-            
-        return mask, ipm_mask 
-        
+        return lanes 
         
 
 

@@ -8,8 +8,9 @@ import cv2
 sys.path.append(os.getcwd())
 import argparse
 
-from LaneNet.LaneNet_model import LaneNet 
-from LaneNet.LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
+from LaneNet_model import LaneNet 
+from LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
+from LaneNet_model.my_postprocessor import * 
 import global_config 
 cfg= global_config.cfg
 
@@ -21,7 +22,6 @@ def init_args():
     parser.add_argument("--weights_path", type= str)
 
     return parser.parse_args() 
-
 
 def minmax_scale(instance_seg_image):
     #instance_seg_image shape: (512, 256, 4)
@@ -37,6 +37,34 @@ def minmax_scale(instance_seg_image):
         instance_seg_image[:, :, channel]= (current_channel - min_value) * 255 / ( max_value - min_value) 
     
     return instance_seg_image
+
+
+
+
+def get_lanes_mask (image, weights_path):
+
+    image = normalize(image) 
+    input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
+
+    net = LaneNet.LaneNet("test")
+    binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
+
+    with tf.Session() as sess : 
+        saver = tf.train.Saver()
+        saver.restore(sess = sess, save_path = weigths_path) 
+
+        binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
+
+
+    return binary_seg_image[0], instance_seg_image[0] 
+
+
+
+def get_lane_curves(binary_image):
+
+    postprocessor = my_postprocessor.PostProcessor() 
+    lanes = postprocessor.process(binary_image) 
+
 
 def test_LaneNet(image_path, weights_path):
 

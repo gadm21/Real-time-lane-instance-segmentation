@@ -12,13 +12,24 @@ import os
 import sys 
 sys.path.append(os.getcwd())
 import collections
-
 import tensorflow as tf
 
-import global_config
-from LaneNet.semantic_segmentation_zoo import cnn_basenet
+from files import global_config
+from semantic_segmentation_zoo import cnn_basenet
 
 CFG = global_config.cfg
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -219,12 +230,13 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
                 'data': conv_4_3,
                 'shape': conv_4_3.get_shape().as_list()
             }
-
-            # encode stage 5 for binary segmentation
+            
             pool4 = self.maxpooling(
                 inputdata=conv_4_3, kernel_size=2,
                 stride=2, name='pool4'
             )
+
+            # encode stage 5 for binary segmentation            
             conv_5_1_binary = self._vgg16_conv_stage(
                 input_tensor=pool4, k_size=3,
                 out_dims=512, name='conv5_1_binary',
@@ -363,6 +375,9 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
             self._vgg16_fcn_decode(name='vgg16_decode_module')
 
         return self._net_intermediate_results
+
+
+
 
 
 if __name__ == '__main__':

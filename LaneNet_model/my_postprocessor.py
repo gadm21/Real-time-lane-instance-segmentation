@@ -62,7 +62,8 @@ def resize_image(image, new_size):
 def normalize(image):
     return image / 127.5 - 1.0
 
-
+def reverse_normalize(image):
+    return np.array(image*255, dtype = np.uint8)
 
 
 class Lane(object):
@@ -72,11 +73,12 @@ class Lane(object):
         self.means= [] 
         self.window_h= 5 
         self.id= id 
-        self.valid= True 
+        self.valid= False 
         self.image_h= None 
         self.image_w= None 
         self.remap_to_x= None 
         self.remap_to_y= None 
+        self.lane_curve = None 
     
     def mean(self):
         current_mean= (int(np.mean(self.clusters[-1][0])), int(np.mean(self.clusters[-1][1])))
@@ -116,8 +118,12 @@ class Lane(object):
         print ("lane {:d} is colorizing".format(self.id))
 
         if color_means:
-            for mean in self.means:
-                cv2.circle(image, (mean[1], mean[0]), 1, color, 2)
+            for cluster in self.clusters:
+
+                mean_x = np.mean(cluster[1], dtype=np.int32)
+                mean_y = np.mean(cluster[0], dtype=np.int32)
+                
+                cv2.circle(image, (mean_x, mean_y), 1, color, 2)
 
         else:
             for cluster in self.clusters:
@@ -134,13 +140,20 @@ class Lane(object):
             diff= high_x - low_x
             total+= diff 
         
-        return int(total // len(self.clusters) )
+        last_width = int(np.max(self.clusters[-1][1]) - np.min(self.clusters[-1][1]))
+        average_width = int(total // len(self.clusters) )
+        weighted_width = int(0.2*average_width + 0.8 * last_width)
+        return weighted_width 
 
     def blacken(self, image) :
         for cluster in self.clusters:
             image[cluster] = 0 
         
         return image 
+
+    def get_start_point(self):
+        last_mean = self.means[-1] 
+        return last_mean[0]
 
     def complete(self, cluster_coords, image):
 
@@ -179,17 +192,36 @@ class Lane(object):
         self.remap_to_x= fs.getNode('remap_ipm_x').mat() 
         self.remap_to_y= fs.getNode('remap_ipm_y').mat()
         fs.release() 
-        
-        
+    
+    def get_curve(self):
+        assert self.valid, 'lane:{:d} is not valid'.format(self.id) 
+
+        ys = []
+        xs = []
+        for m in self.means:
+            ys.append(m[0])
+            xs.append(m[1])
+        '''
+        for cluster in self.clusters:
+            for point in cluster:
+                ys.append(point[0])
+                xs.append(point[1])
+        '''
+                
+        self.lane_curve = np.polyfit(ys, xs, 2)
+
+        #self.lane_curve = np.polyfit(self.means[0], self.means[1], 2) 
+        return self.lane_curve 
 
     def fit(self, remap_file_path = None):
         mask= self.draw_mask(color_means= True) 
 
-        if self.load_remap_matrix(remap_file_path):
-            ipm_mask= cv2.remap(mask, self.remap_to_x, \
-                self.remap_to_y, interpolation= cv2.INTER_NEAREST)
+        if remap_file_path:
+            self.load_remap_matrix(remap_file_path)
+            ipm_mask= cv2.remap(mask, self.remap_to_x, self.remap_to_y, interpolation= cv2.INTER_NEAREST)
             
             return mask, ipm_mask 
+        
 
 
 
@@ -229,8 +261,8 @@ class PostProcessor(object):
         min_lane_points= average_lane_points * self.lane_acceptance_factor
 
         for lane in lanes:
-            if lane.num_points() < min_lane_points:
-                lane.valid= False 
+            if lane.num_points() > min_lane_points:
+                lane.valid= True 
         
     def apply_clustering_on_stride(self, coords):
 
@@ -247,7 +279,6 @@ class PostProcessor(object):
         lanes_coords= np.where(image == 255) 
         lowest_lane_coord= np.min(lanes_coords[0])
         highest_lane_coord= np.max(lanes_coords[0]) 
-        
         
         lanes= []
         for stride in range(highest_lane_coord, lowest_lane_coord, self.stride_h):

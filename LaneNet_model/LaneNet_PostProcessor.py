@@ -10,7 +10,7 @@ from sklearn.cluster import DBSCAN
 #standardize features by removing the mean and scaling to unit variance
 from sklearn.preprocessing import StandardScaler
 
-import global_config 
+from files import global_config 
 cfg= global_config.cfg 
 
 def draw_beautiful_circles(image, lane_pts, start_y, colors):

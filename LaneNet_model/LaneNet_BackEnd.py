@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.getcwd())
 
 import tensorflow as tf
-import global_config
+from files import global_config
 from . import LaneNet_discriminative_loss
 from semantic_segmentation_zoo import cnn_basenet
 

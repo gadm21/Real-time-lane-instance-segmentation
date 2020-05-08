@@ -10,17 +10,16 @@ import argparse
 
 from LaneNet_model import LaneNet 
 from LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
-from LaneNet_model.my_postprocessor import * 
-import global_config 
+from LaneNet_model.my_postprocessor import *
+from files import global_config 
 cfg= global_config.cfg
 
 
 def init_args():
 
     parser= argparse.ArgumentParser()
-    parser.add_argument("--image_path", type= str)
-    parser.add_argument("--weights_path", type= str)
-
+    parser.add_argument("--image", dest = "image", type= str)
+    parser.add_argument("--weights", dest = "weights", type= str)
     return parser.parse_args() 
 
 def minmax_scale(instance_seg_image):
@@ -41,8 +40,10 @@ def minmax_scale(instance_seg_image):
 
 
 
-def get_lanes_mask (image, weights_path):
-
+def get_lanes_masks (image, weights_path):
+    print("getting lanes binary & instance masks ...", end = " ")
+    
+    image = resize_image(image, (512, 256))
     image = normalize(image) 
     input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
@@ -51,78 +52,106 @@ def get_lanes_mask (image, weights_path):
 
     with tf.Session() as sess : 
         saver = tf.train.Saver()
-        saver.restore(sess = sess, save_path = weigths_path) 
+        saver.restore(sess = sess, save_path = weights_path) 
 
         binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
 
-
-    return binary_seg_image[0], instance_seg_image[0] 
+    binary_seg_image = reverse_normalize(binary_seg_image[0]) 
+    instance_seg_image= reverse_normalize(instance_seg_image[0])
+    print("DONE")
+    return binary_seg_image, instance_seg_image
 
 
 
 def get_lane_curves(binary_image):
+    print("getting lanes curves...", end= "")
+    postprocessor = PostProcessor() 
+    clusters = postprocessor.process(binary_image) 
 
-    postprocessor = my_postprocessor.PostProcessor() 
-    lanes = postprocessor.process(binary_image) 
-
-
-def test_LaneNet(image_path, weights_path):
-
-    assert os.path.exists(image_path), "{:s} doesnot exist".format(image_path) 
-
-    image= cv2.imread(image_path, cv2.IMREAD_COLOR)
-    original_copy= image
-    image= cv2.resize(image, (512, 256), interpolation= cv2.INTER_LINEAR)
-    image = image / 127.5 - 1.0 #normalize
-    print("image loaded")
-
-    input_tensor= tf.placeholder(name= "input_tensor", dtype= tf.float32, shape= [1, 256, 512, 3])
-
-    net= LaneNet.LaneNet("test")
-    binary_seg, instance_seg, binary_score= net.inference(input_tensor, name= "lanenet_model")
-
-    saver= tf.train.Saver()
-    with tf.Session() as sess:
-        saver.restore(sess= sess, save_path= weights_path) 
-
-        binary_seg_image, instance_seg_image, binary_score_image=\
-            sess.run([binary_seg, instance_seg, binary_score], \
-                    feed_dict= {input_tensor: [image]})
-
-        binary_seg_image= binary_seg_image[0]
-        instance_seg_image= instance_seg_image[0]
-    print("result inferred")
+    lanes = []
+    for cluster in clusters:
+        if cluster.valid : lanes.append(cluster)
     
+    
+    lanes.sort(key = lambda lane : lane.means[0][1], reverse = True) 
+
+    lane_curves = []
+    start_points = []
+    for lane in lanes:
+        lane_curves.append(lane.get_curve()) 
+        start_points.append(lane.get_start_point())
+    
+    print("DONE")
+    return lane_curves , start_points 
+
+
+def draw_curve(image, curve, color, start_from =10):
+    print("drawing curves...", end= " ")
+    image= to_colored(image) 
+
+    
+    def draw_lane(image, y, x, color= [255, 0, 0], thickness= 5):
+
+        points = len(x)
+        for i, _ in enumerate(x):
+            new_thickness = int(thickness * (i/ points))
+            cv2.circle(image, (x[i], y[i]), new_thickness,  color, -1)
+
+        return image 
+
+    end_point = image.shape[0] - 10
+    step = (image.shape[0] -10 - start_from)/2
+    y = np.linspace(start_from, end_point, step, endpoint= False).astype(np.int32)
+    x = np.array(curve[0]*y**2 + curve[1]*y + curve[2], dtype = np.int32)
+    
+    image = draw_lane(image, y, x, color = color) 
+    
+    print("DONE")
+    return image 
+
+
+def colorize_lanes(binary):
+
+    p = PostProcessor()
+    lanes = p.process(binary) 
+    
+    color_map= [[0, 255, 0], [0, 0, 255], [255, 0, 0]]
+
+    for i, lane in enumerate(lanes):
+        c = color_map[i % len(color_map)]
+        binary = lane.colorize(binary, c, False) 
+    
+    return binary 
+
+def run(args):
+    image = read_image(args.image) 
+    original_shape = image.shape
+    image = resize_image(image , (512, 256))
+    
+
+    binary, instance = get_lanes_masks(image, args.weights)
+    colored_binary = colorize_lanes(binary) 
+    save_image("iamges/results", "binary", colored_binary)
+    show_image(colored_binary) 
     '''
-    with open("binary.pickle", "wb") as binary_dump:
-        pickle.dump(binary_seg_image, binary_dump)
-    
-    with open("instance.pickle", "wb") as instance_dump:
-        pickle.dump(instance_seg_image, instance_dump)
-    '''
-    
-    postprocessor = LaneNetPostProcessor()
-    postprocessor_result= postprocessor.postprocess(
-        source_image= original_copy,
-        binary_seg_result = binary_seg_image,
-        instance_seg_result= instance_seg_image
-    )
-    mask_image= postprocessor_result["mask_image"]
-    final_result= postprocessor_result["source_image"]
-    
-    
-    instance_seg_image= np.array( minmax_scale(instance_seg_image), np.uint8)
+    lane_curves, start_points = get_lane_curves(binary)
 
-    
-    cv2.imwrite("binary_seg_image.png", binary_seg_image * 255)
-    cv2.imwrite("instance_seg_image.png", instance_seg_image)
-    cv2.imwrite("mask_image.png", mask_image) 
-    cv2.imwrite("final_result.png", final_result)
-    
-    print("results saved")
+    color_map= [[0, 255, 0], [0, 0, 255], [255, 0, 0]]
+    for i, curve in enumerate(lane_curves):
+        image = draw_curve(image, curve, color_map[i % len(color_map)], start_points[i])
+        
+
+
+    image = resize_image(image, (original_shape[1], original_shape[0])) 
+    show_image(image) 
+    '''
+
+
+
 
 if __name__ == "__main__":
-
-    args= init_args() 
-
-    test_LaneNet(image_path= args.image_path, weights_path= args.weights_path)
+    args = init_args()
+    
+    
+    run(args) 
+    

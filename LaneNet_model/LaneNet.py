@@ -1,6 +1,6 @@
 import tensorflow as tf 
 
-import global_config
+from files import global_config
 from . import LaneNet_BackEnd, LaneNet_FrontEnd
 from semantic_segmentation_zoo import cnn_basenet
 

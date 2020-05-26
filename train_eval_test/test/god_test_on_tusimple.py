@@ -1,20 +1,23 @@
 import argparse
 import glob
-import os
-import os.path as ops
 import time
 
 import cv2
 import glog as log
 import numpy as np
 import tensorflow as tf
-import tqdm
+#import tqdm
 
-from config import global_config
-from lanenet_model import lanenet
-from lanenet_model import lanenet_postprocess
+import os
+import os.path as ops
+import sys
+sys.path.append(os.getcwd())
 
-CFG = global_config.cfg
+from LaneNet_model import LaneNet 
+from LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
+from LaneNet_model.my_postprocessor import *
+from files import global_config 
+CFG= global_config.cfg
 
 
 def init_args():
@@ -22,40 +25,41 @@ def init_args():
     :return:
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image_dir', type=str, help='The source tusimple lane test data dir')
+    parser.add_argument('--src', type=str, help='The source tusimple lane test folder. contains json file and images to be evaluated')
     parser.add_argument('--weights_path', type=str, help='The model weights path')
-    parser.add_argument('--save_dir', type=str, help='The test output save root dir')
-
     return parser.parse_args()
 
 
-def test_lanenet_batch(src_dir, weights_path, save_dir):
-    """
-    :param src_dir:
-    :param weights_path:
-    :param save_dir:
-    :return:
-    """
-    assert ops.exists(src_dir), '{:s} not exist'.format(src_dir)
+def get_json(src):
+    for json_file_path in glob.glob('{}/test*.json'.format(src)) :
+        return json_file_path
 
-    os.makedirs(save_dir, exist_ok=True)
+def test_lanenet(args):
 
-    input_tensor = tf.placeholder(dtype=tf.float32, shape=[1, 256, 512, 3], name='input_tensor')
+    weights = args.weights_path 
+    json_file = args.json_file 
 
-    net = lanenet.LaneNet(phase='test', net_flag='vgg')
-    binary_seg_ret, instance_seg_ret = net.inference(input_tensor=input_tensor, name='lanenet_model')
+    
 
-    postprocessor = lanenet_postprocess.LaneNetPostProcessor()
+    print("getting lanes binary & instance masks ...", end = " ")
+    
+    image = resize_image(image, (512, 256))
+    image = normalize(image) 
+    input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
-    saver = tf.train.Saver()
+    net = LaneNet.LaneNet("test")
+    binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
 
-    # Set sess configuration
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.per_process_gpu_memory_fraction = CFG.TEST.GPU_MEMORY_FRACTION
-    sess_config.gpu_options.allow_growth = CFG.TRAIN.TF_ALLOW_GROWTH
-    sess_config.gpu_options.allocator_type = 'BFC'
+    with tf.Session() as sess : 
+        saver = tf.train.Saver()
+        saver.restore(sess = sess, save_path = weights_path) 
 
-    sess = tf.Session(config=sess_config)
+        binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
+
+    binary_seg_image = reverse_normalize(binary_seg_image[0]) 
+    instance_seg_image= reverse_normalize(instance_seg_image[0])
+    print("DONE")
+    return binary_seg_image, instance_seg_image
 
     with sess.as_default():
 
@@ -100,15 +104,9 @@ def test_lanenet_batch(src_dir, weights_path, save_dir):
     return
 
 
-if __name__ == '__main__':
-    """
-    test code
-    """
-    # init args
-    args = init_args()
 
-    test_lanenet_batch(
-        src_dir=args.image_dir,
-        weights_path=args.weights_path,
-        save_dir=args.save_dir
-    )
+if __name__ == "__main__":
+    
+    src = input("src") 
+    get_json(src) 
+

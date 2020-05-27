@@ -17,7 +17,6 @@ def save_image(save_dir, image_name, image):
     cv2.imwrite(os.path.join(save_dir, image_name+".png"), image)
 
 def show_image(image, label= 'r' ):
-
     cv2.imshow(label, image) 
     cv2.waitKey(0)  
     cv2.destroyWindow(label)

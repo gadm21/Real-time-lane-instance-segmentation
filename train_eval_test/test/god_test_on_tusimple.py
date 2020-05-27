@@ -1,6 +1,7 @@
 import argparse
 import glob
 import time
+import json
 
 import cv2
 import glog as log
@@ -21,12 +22,9 @@ CFG= global_config.cfg
 
 
 def init_args():
-    """
-    :return:
-    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--src', type=str, help='The source tusimple lane test folder. contains json file and images to be evaluated')
-    parser.add_argument('--weights_path', type=str, help='The model weights path')
+    parser.add_argument('--weights_path', type=str, default = r"C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt", help='The model weights path')
     return parser.parse_args()
 
 
@@ -35,16 +33,12 @@ def get_json(src):
         return json_file_path
 
 def test_lanenet(args):
-
-    weights = args.weights_path 
-    json_file = args.json_file 
-
     
+    src = args.src 
+    json_path = get_json(src) 
+    avg_time_cost = [] 
+    counter = 0
 
-    print("getting lanes binary & instance masks ...", end = " ")
-    
-    image = resize_image(image, (512, 256))
-    image = normalize(image) 
     input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
     net = LaneNet.LaneNet("test")
@@ -52,61 +46,39 @@ def test_lanenet(args):
 
     with tf.Session() as sess : 
         saver = tf.train.Saver()
-        saver.restore(sess = sess, save_path = weights_path) 
+        saver.restore(sess = sess, save_path = args.weights_path) 
 
-        binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
+        with open(json_path, 'r') as file:
+            for i, line in enumerate(file):
+                info = json.loads(line) 
 
-    binary_seg_image = reverse_normalize(binary_seg_image[0]) 
-    instance_seg_image= reverse_normalize(instance_seg_image[0])
-    print("DONE")
-    return binary_seg_image, instance_seg_image
+                image_path = info['raw_file'] 
+                image_full_path = ops.join(src, image_path) 
+                original_image =resize_image( read_image(image_full_path) , (512, 256))
 
-    with sess.as_default():
+                image = normalize(original_image)
 
-        saver.restore(sess=sess, save_path=weights_path)
+                start_time = time.time()
+                binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
+                time_cost = time.time() - start_time 
+                avg_time_cost.append(time_cost) 
 
-        image_list = glob.glob('{:s}/**/*.jpg'.format(src_dir), recursive=True)
-        avg_time_cost = []
-        for index, image_path in tqdm.tqdm(enumerate(image_list), total=len(image_list)):
+                binary_seg_image = reverse_normalize(binary_seg_image[0]) 
+                instance_seg_image= reverse_normalize(instance_seg_image[0])
+                
+                
 
-            image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-            image_vis = image
-            image = cv2.resize(image, (512, 256), interpolation=cv2.INTER_LINEAR)
-            image = image / 127.5 - 1.0
-
-            t_start = time.time()
-            binary_seg_image, instance_seg_image = sess.run(
-                [binary_seg_ret, instance_seg_ret],
-                feed_dict={input_tensor: [image]}
-            )
-            avg_time_cost.append(time.time() - t_start)
-
-            postprocess_result = postprocessor.postprocess(
-                binary_seg_result=binary_seg_image[0],
-                instance_seg_result=instance_seg_image[0],
-                source_image=image_vis
-            )
-
-            if index % 100 == 0:
-                log.info('Mean inference time every single image: {:.5f}s'.format(np.mean(avg_time_cost)))
-                avg_time_cost.clear()
-
-            input_image_dir = ops.split(image_path.split('clips')[1])[0][1:]
-            input_image_name = ops.split(image_path)[1]
-            output_image_dir = ops.join(save_dir, input_image_dir)
-            os.makedirs(output_image_dir, exist_ok=True)
-            output_image_path = ops.join(output_image_dir, input_image_name)
-            if ops.exists(output_image_path):
-                continue
-
-            cv2.imwrite(output_image_path, postprocess_result['source_image'])
-
-    return
+                counter += 1
+                if counter % 10 == 15 : 
+                    print("image:{}, average processing time:{:.5f} s".format(counter, np.mean(avg_time_cost)))
+                    
+                
 
 
 
 if __name__ == "__main__":
     
-    src = input("src") 
-    get_json(src) 
+    args = init_args() 
+    
+    test_lanenet(args) 
 

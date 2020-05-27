@@ -88,7 +88,7 @@ class LaneCluster(object):
             db.fit(features)
         except Exception as e:
             print("clustering error")
-            return None, None, None, None
+            return None, None #, None, None
         
         db_labels= db.labels_
         unique_labels= np.unique(db_labels) 
@@ -101,8 +101,7 @@ class LaneCluster(object):
     def apply_lane_features_cluster(self, binary_seg_result, instance_seg_result):
 
         #get embedding features and coordinates
-        lane_embedding_features, lane_coordinates=\
-             self.get_lane_embedding_features( binary_seg_result, instance_seg_result)
+        lane_embedding_features, lane_coordinates= self.get_lane_embedding_features( binary_seg_result, instance_seg_result)
         
         #apply dbscan cluster
         db_labels, unique_labels= self.embedding_features_dbscan_cluster(lane_embedding_features)

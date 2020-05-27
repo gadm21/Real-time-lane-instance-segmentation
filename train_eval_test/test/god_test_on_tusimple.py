@@ -42,6 +42,8 @@ def test_lanenet(args):
     input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
     net = LaneNet.LaneNet("test")
+    postprocessor = LaneNetPostProcessor(ipm_remap_file_path = 'files/tusimple_ipm_remap.yml') 
+
     binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
 
     with tf.Session() as sess : 
@@ -55,7 +57,6 @@ def test_lanenet(args):
                 image_path = info['raw_file'] 
                 image_full_path = ops.join(src, image_path) 
                 original_image =resize_image( read_image(image_full_path) , (512, 256))
-
                 image = normalize(original_image)
 
                 start_time = time.time()
@@ -63,9 +64,15 @@ def test_lanenet(args):
                 time_cost = time.time() - start_time 
                 avg_time_cost.append(time_cost) 
 
-                binary_seg_image = reverse_normalize(binary_seg_image[0]) 
-                instance_seg_image= reverse_normalize(instance_seg_image[0])
+                #binary_seg_image = reverse_normalize(binary_seg_image[0]) 
+                #instance_seg_image= reverse_normalize(instance_seg_image[0])
                 
+                ret = postprocessor.postprocess(binary_seg_image[0], instance_seg_image[0], original_image) 
+                
+                show_image(ret['mask_image'])
+                show_image(ret['source_image'])
+                print("fit params:", ret['fit_params'])
+
                 
 
                 counter += 1

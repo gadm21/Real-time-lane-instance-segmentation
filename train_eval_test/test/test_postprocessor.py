@@ -6,30 +6,35 @@ sys.path.append(os.getcwd())
 import numpy as np 
 import cv2 
 import pickle 
+import tensorflow as tf 
+import time 
 
-from LaneNet.LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
+from LaneNet_model.LaneNet import LaneNet 
+from LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
+from LaneNet_model.my_postprocessor import * 
 
-def load_images():
-    
-    with open("images/binary.pickle", "rb") as binary:
-        binary_image= pickle.load(binary)
-    
-    with open("images/instance.pickle", "rb") as instance:
-        instance_image= pickle.load(instance) 
-        
-    source_image= cv2.imread("images/source_image.png")
 
-    return source_image, binary_image, instance_image 
 
+def predict(net, source_image):
+    image = normalize(source_image) 
+    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [1, 256, 512, 3])
+    binary, instance, binary2= net.inference(x, 'lanenet_model')
+
+    start = time.time() 
+    binary_image, instance_image, binary_image2 = sess.run([binary, instance, binary2], feed_dict={x:[image]})
+    end = time.time() 
+
+    return {"binary":binary, 'insance':instance, 'binary2':binary2}
 
 def test_postprocessor():
 
-    source, binary, instance= load_images()
-    postprocessor= LaneNetPostProcessor()
-    ret= postprocessor.postprocess(binary, instance, source) 
-    
-    cv2.imwrite("final_result.png", ret['source_image'])
+    image = read_image('images/source.jpg') 
+    net = LaneNet() 
 
+    ret = prdict(net, image) 
+    show_image(ret['binary'][0]) 
+    show_image(ret['instance'][0]) 
+    show_image(ret['binary2'][0])
 
 
 

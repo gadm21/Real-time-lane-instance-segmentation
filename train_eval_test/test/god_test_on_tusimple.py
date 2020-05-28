@@ -37,13 +37,15 @@ def test_lanenet(args):
     src = args.src 
     json_path = get_json(src) 
     avg_time_cost = [] 
+    avg_time_hisprocessor = []
+    avg_time_myprocessor = []
     counter = 0
 
     input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
     net = LaneNet.LaneNet("test")
     postprocessor = LaneNetPostProcessor(ipm_remap_file_path = 'files/tusimple_ipm_remap.yml') 
-
+    advanced_postprocessor = PostProcessor() 
     binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
 
     with tf.Session() as sess : 
@@ -67,18 +69,39 @@ def test_lanenet(args):
                 #binary_seg_image = reverse_normalize(binary_seg_image[0]) 
                 #instance_seg_image= reverse_normalize(instance_seg_image[0])
                 
+                start = time.time()
                 ret = postprocessor.postprocess(binary_seg_image[0], instance_seg_image[0], original_image) 
-                
-                show_image(ret['mask_image'])
-                show_image(ret['source_image'])
-                print("fit params:", ret['fit_params'])
+                checkpoint = time.time()
+                my_ret = advanced_postprocessor.process(binary_seg_image[0]) 
+                end = time.time()
+                avg_time_hisprocessor.append(checkpoint - start) 
+                avg_time_myprocessor.append(end - checkpoint ) 
 
+
+                '''
+                save_image('images', 'source_image_{}'.format(i) , ret['source_image'])
+                save_image('images', 'his_mask_image_{}'.format(i), ret['mask_image'])
+                save_image('images', 'my_mask_image_{}'.format(i), my_ret['mask_image'])
                 
 
+
+                for lane in ret['fit_params'] :
+                    print(lane) 
+                print("___________________________")
+                for lane in my_ret['fit_params']:
+                    print(lane) 
+                print('\n\n')
+                '''
+                print("his shape:", ret['mask_image'].shape) 
+                print("my shape:", my_ret['mask_image'].shape) 
+                
+                return 
                 counter += 1
-                if counter % 10 == 15 : 
-                    print("image:{}, average processing time:{:.5f} s".format(counter, np.mean(avg_time_cost)))
-                    
+                if counter % 15 == 0 : 
+                    print("average processing time:{:.5f} s".format( np.mean(avg_time_cost)))
+                    print("average his postprocessing time:{:.5f} s".format( np.mean(avg_time_hisprocessor)))
+                    print("average my postprocessing time:{:.5f} s".format( np.mean(avg_time_myprocessor)))
+                    return
                 
 
 

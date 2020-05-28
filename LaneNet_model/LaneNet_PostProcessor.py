@@ -1,6 +1,7 @@
 
 
 import math
+import time 
 import os 
 import cv2 
 import glog as log
@@ -12,6 +13,11 @@ from sklearn.preprocessing import StandardScaler
 
 from files import global_config 
 cfg= global_config.cfg 
+
+def save_image(save_dir, image_name, image):
+    os.makedirs(save_dir, exist_ok=True) 
+    cv2.imwrite(os.path.join(save_dir, image_name+".png"), image)
+
 
 def draw_beautiful_circles(image, lane_pts, start_y, colors):
 
@@ -217,7 +223,8 @@ class LaneNetPostProcessor(object):
                 lane_pts.append([src_x, src_y])
 
             src_lane_pts.append(lane_pts)
-            
+        
+        save_image('his_mask', 'mask_{}'.format(time.time()), tmp_ipm_mask) 
 
 
 

@@ -44,9 +44,10 @@ def test_lanenet(args):
     input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
 
     net = LaneNet.LaneNet("test")
+    binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
+    
     postprocessor = LaneNetPostProcessor(ipm_remap_file_path = 'files/tusimple_ipm_remap.yml') 
     advanced_postprocessor = PostProcessor() 
-    binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
 
     with tf.Session() as sess : 
         saver = tf.train.Saver()
@@ -78,24 +79,23 @@ def test_lanenet(args):
                 avg_time_myprocessor.append(end - checkpoint ) 
 
 
-                '''
-                save_image('images', 'source_image_{}'.format(i) , ret['source_image'])
-                save_image('images', 'his_mask_image_{}'.format(i), ret['mask_image'])
-                save_image('images', 'my_mask_image_{}'.format(i), my_ret['mask_image'])
+                save_image('images2','binary_{}'.format(i), my_ret['binary'])
+                save_image('images2', 'source_image_{}'.format(i) , ret['source_image'])
+                save_image('images2', 'his_mask_image_{}'.format(i), ret['mask_image'])
+                save_image('images2', 'my_mask_image_{}'.format(i), my_ret['mask_image'])
                 
 
-
+                '''
                 for lane in ret['fit_params'] :
                     print(lane) 
                 print("___________________________")
                 for lane in my_ret['fit_params']:
                     print(lane) 
                 print('\n\n')
-                '''
+                
                 print("his shape:", ret['mask_image'].shape) 
                 print("my shape:", my_ret['mask_image'].shape) 
-                
-                return 
+                '''
                 counter += 1
                 if counter % 15 == 0 : 
                     print("average processing time:{:.5f} s".format( np.mean(avg_time_cost)))

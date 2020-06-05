@@ -113,15 +113,15 @@ def draw_curve(image, curve, color, start_from =10):
 def colorize_lanes(binary):
 
     p = PostProcessor()
-    lanes = p.process(binary) 
+    ret = p.process(binary) 
     
-    color_map= [[0, 255, 0], [0, 0, 255], [255, 0, 0]]
-
-    for i, lane in enumerate(lanes):
-        c = color_map[i % len(color_map)]
-        binary = lane.colorize(binary, c, False) 
+    mask = ret['mask_image'] 
+    ipm_mask = ret['ipm_mask'] 
+    fit_params = ret['fit_params'] 
     
-    return binary 
+    save_image('results', 'mask', mask) 
+    save_image('results', 'ipm_mask', ipm_mask)
+    
 
 def run(args):
     image = read_image(args.image) 
@@ -130,22 +130,9 @@ def run(args):
     
 
     binary, instance = get_lanes_masks(image, args.weights)
-    colored_binary = colorize_lanes(binary) 
-    save_image("iamges/results", "binary", colored_binary)
-    show_image(colored_binary) 
-    '''
-    lane_curves, start_points = get_lane_curves(binary)
-
-    color_map= [[0, 255, 0], [0, 0, 255], [255, 0, 0]]
-    for i, curve in enumerate(lane_curves):
-        image = draw_curve(image, curve, color_map[i % len(color_map)], start_points[i])
-        
-
-
-    image = resize_image(image, (original_shape[1], original_shape[0])) 
-    show_image(image) 
-    '''
-
+    colorize_lanes(binary) 
+    
+    
 
 
 

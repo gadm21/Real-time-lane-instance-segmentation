@@ -286,9 +286,12 @@ class PostProcessor(object):
 
     def process(self, binary):
 
-        binary= np.array(binary * 255, dtype= np.uint8) 
-        image= self.pre_processing(binary) 
 
+        m = int(np.max(binary)) 
+        if m == 1 :  binary= np.array(binary * 255, dtype= np.uint8) 
+        else : binary= np.array(binary , dtype= np.uint8) 
+
+        image= self.pre_processing(binary) 
         image_h, image_w = image.shape
         lanes_coords= np.where(image == 255) 
         lowest_lane_coord= np.min(lanes_coords[0])
@@ -328,6 +331,7 @@ class PostProcessor(object):
         save_image('my_mask', 'mask_{}'.format(time.time()), ipm_mask) 
                 
         ret = {
+            'binary' : binary,
             'mask_image': mask,
             'ipm_mask': ipm_mask,
             'fit_params': lane_params,

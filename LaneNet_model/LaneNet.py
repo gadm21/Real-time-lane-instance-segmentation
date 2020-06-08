@@ -26,7 +26,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
             layers_outputs= self._frontend.build_model(input_tensor= input_tensor, name= 'vgg_frontend', reuse= self._reuse)
 
             #second, apply backend process
-            binary_seg_prediction, instance_seg_prediction, binary_score= self._backend.inference(
+            binary_seg_prediction, instance_seg_prediction = self._backend.inference(
                 binary_seg_logits= layers_outputs['binary_segment_logits']['data'],
                 instance_seg_logits= layers_outputs['instance_segment_logits']['data'],
                 name= 'vgg_backend', reuse= self._reuse
@@ -34,7 +34,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
 
             self._reuse= True
         
-        return binary_seg_prediction, instance_seg_prediction, binary_score
+        return binary_seg_prediction, instance_seg_prediction
     
 
 

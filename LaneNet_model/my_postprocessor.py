@@ -38,6 +38,7 @@ def to_colored(image):
 
 def remove_noise(image, min_area_threshold= 500):
     assert len(image.shape) != 3, "remove noise accepts gray images only"
+
     _, labels, stats, _= cv2.connectedComponentsWithStats(image, connectivity= 8, ltype= cv2.CV_32S)
 
     for index, stat in enumerate(stats):
@@ -93,6 +94,15 @@ class Lane(object):
         self.means.append(predicted_mean) 
 
         return predicted_mean    
+
+    def advanced_mean(self):
+        current_mean= (np.mean(self.clusters[-1][0]), np.mean(self.clusters[-1][1]))
+        prev_mean= self.means[-1]
+        mean_change= (current_mean[0] - prev_mean[0], current_mean[1] - prev_mean[1]) 
+
+        new_mean = (current_mean[0] + mean_change[0], int(0.2*prev_mean[1] + 0.8*current_mean[1]))
+        self.means.append(new_mean) 
+        return new_mean 
 
     def print_info(self):
         print("lane {:d} info:".format(self.id))
@@ -150,8 +160,8 @@ class Lane(object):
 
     def blacken(self, image) :
         for cluster in self.clusters:
-            image[cluster] = 0 
-        
+            image[cluster] = 0
+    
         return image 
 
     def get_start_point(self):
@@ -165,6 +175,7 @@ class Lane(object):
 
         self.image_h, self.image_w = image.shape[0], image.shape[1]
         lanes_coords= np.where(image == 255) 
+        
         lowest_lane_coord= np.min(lanes_coords[0])
         highest_lane_coord= np.max(cluster_coords[0]) 
         window_center= self.means[-1][1]
@@ -184,7 +195,7 @@ class Lane(object):
             window_center= self.mean()[1]
 
         image= self.blacken(image) 
-        image= remove_noise(image) 
+        #image= remove_noise(image) 
         return image 
              
     def load_remap_matrix(self, remap_file_path):
@@ -218,21 +229,18 @@ class Lane(object):
 
     def fit(self, remap_file_path = None):
         mask= self.draw_mask(color_means= False) 
-        tmp_mask = resize_image(mask, (720, 1280))
-        #birdeye_mask = np.zero((720, 1280), dtype = np.uint8)
         
         self.load_remap_matrix(remap_file_path)
+        tmp_mask = resize_image(mask, (720, 1280))
         ipm_mask= cv2.remap(tmp_mask, self.remap_to_x, self.remap_to_y, interpolation= cv2.INTER_NEAREST)
        
-
         nonzero_y = np.array(ipm_mask.nonzero()[0]) 
         nonzero_x = np.array(ipm_mask.nonzero()[1]) 
-        
-        params = np.polyfit(nonzero_y, nonzero_x, 2) 
+        params = 0 #np.polyfit(nonzero_y, nonzero_x, 2) 
         
         return mask, ipm_mask, params
       
-        
+
 
 
 
@@ -285,22 +293,20 @@ class PostProcessor(object):
         return labels, unique_labels 
 
     def process(self, binary):
-
-
-        m = int(np.max(binary)) 
-        if m == 1 :  binary= np.array(binary * 255, dtype= np.uint8) 
-        else : binary= np.array(binary , dtype= np.uint8) 
-
+        
+        binary = np.array(binary*255, dtype = np.uint8)
         image= self.pre_processing(binary) 
+        image = binary 
         image_h, image_w = image.shape
+
         lanes_coords= np.where(image == 255) 
+        assert len(lanes_coords[0]), 'no lanes to process' 
+
         lowest_lane_coord= np.min(lanes_coords[0])
         highest_lane_coord= np.max(lanes_coords[0]) 
         
         lanes= []
         lane_params = [] 
-        mask = np.zeros((image.shape[0], image.shape[1], 3), dtype = np.uint8) 
-        ipm_mask = np.zeros(shape= (640, 640, 3), dtype= np.uint8)
 
         for stride in range(highest_lane_coord, lowest_lane_coord, self.stride_h):
             lanes_coords= np.where(image == 255)
@@ -316,19 +322,21 @@ class PostProcessor(object):
                 cluster_coords= (stride_lanes_coords[0][cluster], stride_lanes_coords[1][cluster])
                 
                 lane= Lane(self.give_id()) 
+                
                 image= lane.complete(cluster_coords, image) 
+                
                 lanes.append(lane) 
                 
         self.inspect_lanes(lanes) 
 
+        mask = np.zeros((image.shape[0], image.shape[1], 3), dtype = np.uint8) 
+        ipm_mask = np.zeros(shape= (640, 640, 3), dtype= np.uint8)
         for lane in lanes :
             if not lane.valid : continue 
             m, ipm_m, params = lane.fit(self.ipm_remap_file_path) 
             mask |= m 
             ipm_mask |= ipm_m 
             lane_params.append(params)  
-        
-        save_image('my_mask', 'mask_{}'.format(time.time()), ipm_mask) 
                 
         ret = {
             'binary' : binary,

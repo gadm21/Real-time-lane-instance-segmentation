@@ -83,17 +83,16 @@ class LaneCluster(object):
         lane_embedding_features= instance[idx]
         lane_coordinates= np.vstack((idx[1], idx[0])).transpose()
         return lane_embedding_features, lane_coordinates
-        
+    
     @staticmethod
     def embedding_features_dbscan_cluster(lane_embedding_features):
         
         db= DBSCAN(cfg.POSTPROCESS.DBSCAN_EPS , cfg.POSTPROCESS.DBSCAN_MIN_SAMPLES) 
-
         try:
             features= StandardScaler().fit_transform(lane_embedding_features)
             db.fit(features)
         except Exception as e:
-            print("clustering error")
+            print("clustering error:{}".format(e)) 
             return None, None #, None, None
         
         db_labels= db.labels_
@@ -129,7 +128,7 @@ class LaneCluster(object):
 
 class LaneNetPostProcessor(object):
 
-    def __init__(self, ipm_remap_file_path = 'tusimple_ipm_remap.yml'):
+    def __init__(self, ipm_remap_file_path = 'files/tusimple_ipm_remap.yml'):
         assert os.path.exists(ipm_remap_file_path), "{:s} doesnot exist".format(ipm_remap_file_path)
 
         self.cluster= LaneCluster()

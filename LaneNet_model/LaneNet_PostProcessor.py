@@ -6,6 +6,8 @@ import os
 import cv2 
 import glog as log
 import numpy as np
+import random 
+
 #density based spatial clustering of applications with noise 
 from sklearn.cluster import DBSCAN
 #standardize features by removing the mean and scaling to unit variance
@@ -17,6 +19,10 @@ cfg= global_config.cfg
 def save_image(save_dir, image_name, image):
     os.makedirs(save_dir, exist_ok=True) 
     cv2.imwrite(os.path.join(save_dir, image_name+".png"), image)
+
+
+def resize_image(image, new_size):
+    return cv2.resize(image, new_size)
 
 
 def draw_beautiful_circles(image, lane_pts, start_y, colors):
@@ -170,7 +176,11 @@ class LaneNetPostProcessor(object):
 
         #convert binary_seg_result range from [0, 1] to [0, 255]
         binary= np.array(binary_seg_result * 255, dtype= np.uint8) 
-
+        print("his_binary shape:{}".format(binary.shape))
+        binary = resize_image(binary, source_image.shape[0:2] )
+        print("his_binary shape:{}".format(binary.shape))
+        instance_seg_result = resize_image(instance_seg_result, source_image.shape[0:2]) 
+        
         #apply morophology operation to fill in holes
         binary= morphological_process(binary) 
 
@@ -191,12 +201,36 @@ class LaneNetPostProcessor(object):
 
         assert mask_image is not None, "mask_image is None, ynf3 kda!"
 
+
+
+        lanes_params = [] 
+        poly_mask = np.zeros(shape = (720, 1280, 3), dtype = np.uint8) 
+        for i, coords in enumerate(lane_coords):
+            
+            coords_y = np.int_(coords[:,1]*720/binary.shape[0])
+            start_point = np.min(coords_y) 
+            end_point = np.max(coords_y)
+            coords_x = np.int_(coords[:,0]*1280/binary.shape[1])
+            
+            params = np.polyfit(coords_y, coords_x, 2) 
+            lanes_params.append(params) 
+
+            poly_coords_y = np.int_(np.linspace(start_point, end_point , end_point - start_point) )
+            poly_coords_x = np.int_(np.clip(params[0]*poly_coords_y**2 + params[1]*poly_coords_y + params[2], 0, 1280 -1)) 
+            color = random.choice(self.color_map) 
+            
+            poly_mask[(poly_coords_y, poly_coords_x)] = color 
+        print("mask shape:{}".format(poly_mask.shape) )
+        ret = { 'mask_image' : poly_mask, 'lanes_params' : lanes_params}
+        return ret 
+
+        '''
         #lane curve fitting
         fit_params= []
         src_lane_pts= []
         for lane_index, coordinates in enumerate(lane_coords):
             tmp_mask = np.zeros(shape=(720, 1280), dtype=np.uint8)
-            idx= tuple((np.int_(coordinates[:, 1] * 720 / 256), np.int_(coordinates[:, 0] * 1280 / 512)))
+            idx= tuple((np.int_(coordinates[:, 1] * 720 / binary.shape[0]), np.int_(coordinates[:, 0] * 1280 / binary.shape[1])))
             tmp_mask[idx] = 255
             
             tmp_ipm_mask= cv2.remap(tmp_mask, self.remap_to_ipm_x, self.remap_to_ipm_y, interpolation= cv2.INTER_NEAREST)
@@ -223,7 +257,6 @@ class LaneNetPostProcessor(object):
 
             src_lane_pts.append(lane_pts)
         
-        save_image('his_mask', 'mask_{}'.format(time.time()), tmp_ipm_mask) 
 
 
 
@@ -271,13 +304,13 @@ class LaneNetPostProcessor(object):
             
         
         ret = {
-            'mask_image': mask_image,
+            'mask_image': mask_image, 
             'fit_params': fit_params,
             'source_image': source_image,
         }
-
+        
         return ret
-
+        '''
 
 
 '''

@@ -85,6 +85,14 @@ class Lane(object):
         self.lane_curve = None 
         self.birdeye_params = None 
     
+    def get_coords(self):
+        coords = [] 
+        for cluster in self.clusters:
+            coords_y, coords_x = cluster
+            for y, x in zip(coords_y, coords_x) :
+                coords.append((x, y)) 
+        return np.array(coords) 
+
     def mean(self):
         current_mean= (int(np.mean(self.clusters[-1][0])), int(np.mean(self.clusters[-1][1])))
         prev_mean= self.means[-1]
@@ -292,13 +300,14 @@ class PostProcessor(object):
         unique_labels= np.unique(labels) 
         return labels, unique_labels 
 
-    def process(self, binary):
+    def process(self, binary, source):
         
         binary = np.array(binary*255, dtype = np.uint8)
+        
         image= self.pre_processing(binary) 
-        image = binary 
+        image = resize_image(binary, source.shape[0:2] )
         image_h, image_w = image.shape
-
+        
         lanes_coords= np.where(image == 255) 
         assert len(lanes_coords[0]), 'no lanes to process' 
 
@@ -306,7 +315,7 @@ class PostProcessor(object):
         highest_lane_coord= np.max(lanes_coords[0]) 
         
         lanes= []
-        lane_params = [] 
+        lanes_params = [] 
 
         for stride in range(highest_lane_coord, lowest_lane_coord, self.stride_h):
             lanes_coords= np.where(image == 255)
@@ -329,20 +338,30 @@ class PostProcessor(object):
                 
         self.inspect_lanes(lanes) 
 
-        mask = np.zeros((image.shape[0], image.shape[1], 3), dtype = np.uint8) 
-        ipm_mask = np.zeros(shape= (640, 640, 3), dtype= np.uint8)
+        mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
+        
         for lane in lanes :
             if not lane.valid : continue 
-            m, ipm_m, params = lane.fit(self.ipm_remap_file_path) 
-            mask |= m 
-            ipm_mask |= ipm_m 
-            lane_params.append(params)  
-                
+            coords = lane.get_coords() 
+            coords_y = np.int_(coords[:,1]) 
+            coords_x = np.int_(coords[:,0])
+            start_point = np.min(coords_y) 
+            end_point = np.max(coords_y) 
+            print("start point:{}".format(start_point)) 
+            print("coords_y:{} \n\n coords_x:{} \n\n\n\n".format(coords_y, coords_x)) 
+            params = np.polyfit(coords_y, coords_x, 2) 
+            lanes_params.append(params) 
+            
+            poly_coords_y = np.int_(np.linspace(start_point, end_point , end_point - start_point)) 
+            poly_coords_x = np.int_(np.clip(params[0]*poly_coords_y**2 + params[1]*poly_coords_y + params[2], 0, 1280-1) )
+            color = self.color_map[self.give_id()%len(self.color_map)]
+            
+            mask[(poly_coords_y, poly_coords_x)] = color 
+        if len(lanes) > 5 : print("WARNING | {} lanes detected".format(len(lanes)) )
+        
         ret = {
-            'binary' : binary,
             'mask_image': mask,
-            'ipm_mask': ipm_mask,
-            'fit_params': lane_params,
+            'lanes_params': lanes_params,
         }
 
         return ret 

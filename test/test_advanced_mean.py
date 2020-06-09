@@ -196,12 +196,11 @@ def inspect_lanes(lanes):
 
 
 
-def process( image):
+def process( image, source):
     id = 0 
 
-    print("image max:{}".format(np.max(image)))
-    print("image shape:{}".format(image.shape))
     image = np.array(image*255, dtype = np.uint8)
+    image = resize_image(image, source.shape[0:2])
     image= remove_noise(image) 
 
     lanes_coords= np.where(image == 255) 
@@ -231,17 +230,16 @@ def process( image):
     inspect_lanes(lanes) 
 
     mask = np.zeros((image.shape[0], image.shape[1], 3), dtype = np.uint8) 
-    counter = 0
     for lane in lanes:
         if not lane.valid : continue 
-        counter += 1
         mask |= lane.draw_mask(shape = mask.shape, color_means = False) 
-    print("number of lanes:{}".format(counter))
     return mask 
 
 
 def predict( images):
-    if not isinstance(images, list): image = [image] 
+    if not isinstance(images, list): images = [images] 
+    original_shape = images[0].shape[0:2]
+
     images = np.array([normalize(resize_image( image , (512, 256))) for image in images])
 
     x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [images.shape[0], 256, 512, 3])
@@ -252,7 +250,19 @@ def predict( images):
         load_weights(sess, weights_path) 
         binary_output, instance_segmentation_output = sess.run([binary, instance], {x : images})
     
-    return binary_output, instance_segmentation_output  # [0,1] not [0,255]
+    
+
+    binary_images = [] 
+    instance_images = [] 
+
+    for i in range(len(images)) :
+        binary_image = binary_output[i, :, :] 
+        instance_image = instance_segmentation_output[i, :, :, :]  
+        binary_images.append(binary_image) 
+        instance_images.append(instance_image) 
+
+    return binary_images, instance_images 
+    #return binary_output, instance_segmentation_output  # [0,1] not [0,255]
 
 
 
@@ -271,11 +281,13 @@ def test(binary_images, instance_images, source_images):
     his_postprocessor = LaneNetPostProcessor() 
     for i in range(len(source_images)):
 
-        ret = postprocessor.process(binary_images[i])  
         his_ret = his_postprocessor.postprocess(binary_images[i], instance_images[i], source_images[i]) 
+        ret = postprocessor.process(binary_images[i], source_images[i])    
+        local_mask = process(binary_images[i], source_images[i]) 
 
         save_image('images/result', 'my_lane_mask_{}'.format( i), ret['mask_image']) 
         save_image('images/result', 'his_lane_mask_{}'.format(i), his_ret['mask_image']) 
+        save_image('images/result', 'local_mask_{}'.format(i), local_mask) 
 
 
 
@@ -300,5 +312,7 @@ if __name__ == "__main__":
 
     source_images = [resize_image(read_image(i), (720, 1280)) for i in get_image_paths_list(images_path)][0:1]
     
+
     binary_images, instance_images = predict(source_images) 
+    
     test(binary_images, instance_images, source_images)  

@@ -6,6 +6,8 @@ import tensorflow as tf
 def get_image_paths_list(images_path):
     images_list = glob.glob('{}/*.png'.format(images_path))
     images_list += glob.glob('{}/*.jpg'.format(images_path))
+    images_list += glob.glob('{}/*.pickle'.format(images_path))
+    
     return images_list 
 
 def load_weights(sess, weights_path):

@@ -176,9 +176,7 @@ class LaneNetPostProcessor(object):
 
         #convert binary_seg_result range from [0, 1] to [0, 255]
         binary= np.array(binary_seg_result * 255, dtype= np.uint8) 
-        print("his_binary shape:{}".format(binary.shape))
         binary = resize_image(binary, source_image.shape[0:2] )
-        print("his_binary shape:{}".format(binary.shape))
         instance_seg_result = resize_image(instance_seg_result, source_image.shape[0:2]) 
         
         #apply morophology operation to fill in holes
@@ -220,7 +218,7 @@ class LaneNetPostProcessor(object):
             color = random.choice(self.color_map) 
             
             poly_mask[(poly_coords_y, poly_coords_x)] = color 
-        print("mask shape:{}".format(poly_mask.shape) )
+            
         ret = { 'mask_image' : poly_mask, 'lanes_params' : lanes_params}
         return ret 
 

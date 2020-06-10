@@ -83,6 +83,18 @@ def order_lanes(lanes):
     perm = np.argsort(means)
     return np.array(lanes)[perm] 
 
+def draw_lanes(image, lanes, color):
+    h_samples = lanes[0] 
+    lanes_x_coords = lanes[1]
+    for lane in lanes_x_coords : 
+        for i, x in enumerate(lane) : 
+            
+            image = cv2.circle(image, 
+                              (x, h_samples[i]),
+                              radius = 4,
+                              color = color,
+                              thickness = 4 )
+
 def get_lanes(h_samples, lanes_params) :
     lanes = []
     coords_y = np.int_(h_samples) 
@@ -95,56 +107,65 @@ def get_lanes(h_samples, lanes_params) :
 def compare_lanes(lanes1, lanes2 ):
     diff = 0 
     for i in range(len(lanes1)):
-        diff += np.abs(lanes1[i]- lanes2[i]) 
+        if len(lanes2) > i : 
+            lane1 = lanes1[i] 
+            lane2 = lanes2[i] 
+            for point1, point2 in zip(lane1, lane2):
+                diff += np.abs(point1 - point2) 
+                
     return diff 
 
 if __name__ == "__main__" :
     
-    infos = get_info(json_dir, json_file, 1)
+    
+    infos = get_info(json_dir, json_file, 10)
+    binary_images = [normalize(to_gray(read_image(i))) for i in get_image_paths_list(images_path2)] 
     postprocessor = PostProcessor() 
-    his_postprocessor = LaneNetPostProcessor() 
+    #his_postprocessor = LaneNetPostProcessor() 
     my_time_cost = []
-    his_time_cost = [] 
+    #his_time_cost = [] 
 
     images = [read_image(infos[i][0]) for i in range(len(infos))] 
     
-    binary_images, instance_images = predict(images) 
+    #binary_images, instance_images = predict(images) 
     
-    print("DONE PREDICTION !")
+    
 
 
     for i, info in enumerate(infos):
         image_path, lane_list, h_samples = info
         image = read_image(image_path)
         binary_image = binary_images[i]
-        instance_image = instance_images[i]  
+        #instance_image = instance_images[i]  
 
-        time1 = time.time() 
-        my_ret = postprocessor.process(binary_image, image)
+        #time1 = time.time() 
+        #his_ret = his_postprocessor.postprocess(binary_image, instance_image, image) 
         time2 = time.time()
-        his_ret = his_postprocessor.postprocess(binary_image, instance_image, image) 
+        my_ret = postprocessor.process(binary_image, image)
         time3 = time.time() 
 
         gt_lanes = order_lanes(lane_list) 
         my_lanes = order_lanes(get_lanes(h_samples, my_ret['lanes_params'])) 
-        his_lanes = order_lanes(get_lanes(h_samples, his_ret['lanes_params'])) 
+        #his_lanes = order_lanes(get_lanes(h_samples, his_ret['lanes_params'])) 
 
-        my_score = compare_lanes(gt_lanes, my_lanes) 
-        his_score = compare_lanes(gt_lanes, his_lanes) 
+        #my_score = compare_lanes(gt_lanes, my_lanes) 
+        #his_score = compare_lanes(gt_lanes, his_lanes) 
         
-        my_time_cost.append(time2-time1) 
-        his_time_cost.append(time3-time2) 
+        my_time_cost.append(time3-time2) 
+        #his_time_cost.append(time2-time1) 
+        
+        draw_lanes(image, (h_samples, my_lanes), color = [255, 0, 0])
+        draw_lanes(image, (h_samples, gt_lanes), color = [0, 0, 255])
 
-        save_image('images/result', 'source_{}'.format(i), image)
-        save_image('images/result', 'binary_{}'.format(i), binary_image*255)
-        save_image('images/result', 'mine_{}'.format(i), my_ret['mask_image']) 
-        save_image('images/result', 'his_{}'.format(i), his_ret['mask_image'])
+        save_image('images/result', 'lanes_on_source_{}'.format(i), image)
+        #save_image('images/result', 'binary_{}'.format(i), binary_image*255)
+        #save_image('images/result', 'mine_{}'.format(i), my_ret['mask_image']) 
+        #save_image('images/result', 'his_{}'.format(i), his_ret['mask_image'])
 
 
-        if i % 5 == 0 :
+        if i % 3 == 0 :
             print("my postprocessing time :{}".format(np.mean(my_time_cost))) 
-            print("his postprocessing time:{}".format(np.mean(his_time_cost)))
+            #print("his postprocessing time:{}".format(np.mean(his_time_cost)))
         
         
-
             

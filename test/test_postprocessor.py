@@ -16,8 +16,10 @@ from LaneNet_model.my_postprocessor import *
 
 from test_utils import * 
 
-images_path = 'images/input'
-images_path2 = 'images/input_binary'
+sources_path = 'images/source'
+binaries_path = 'images/binary'
+instances_path = 'images/instance' 
+
 weights_path = r'C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt'
 
 
@@ -51,9 +53,11 @@ def test_postprocessor(binary_images):
 
 if __name__ == "__main__":
 
-    binary_images = [to_gray(read_image(i)) for i in get_image_paths_list(images_path2)]
-
-    #binary_images, instance_images = predict(image_list) 
+    source_images_paths = get_image_paths_list(sources_path) 
+    binary_images_paths = get_image_paths_list(binaries_path) 
+    instance_images_paths = get_image_paths_list(instances_path) 
+    
+    
     
 
     

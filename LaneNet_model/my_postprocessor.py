@@ -303,9 +303,8 @@ class PostProcessor(object):
     def process(self, binary, source):
         
         binary = np.array(binary*255, dtype = np.uint8)
-        
         image= self.pre_processing(binary) 
-        image = resize_image(binary, source.shape[0:2] )
+        image = resize_image(binary, (1280, 720) )
         image_h, image_w = image.shape
         
         lanes_coords= np.where(image == 255) 
@@ -340,15 +339,16 @@ class PostProcessor(object):
 
         mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
         
+        lane_counter = 0
         for lane in lanes :
             if not lane.valid : continue 
+            lane_counter += 1
             coords = lane.get_coords() 
             coords_y = np.int_(coords[:,1]) 
             coords_x = np.int_(coords[:,0])
             start_point = np.min(coords_y) 
             end_point = np.max(coords_y) 
-            print("start point:{}".format(start_point)) 
-            print("coords_y:{} \n\n coords_x:{} \n\n\n\n".format(coords_y, coords_x)) 
+            
             params = np.polyfit(coords_y, coords_x, 2) 
             lanes_params.append(params) 
             
@@ -357,7 +357,7 @@ class PostProcessor(object):
             color = self.color_map[self.give_id()%len(self.color_map)]
             
             mask[(poly_coords_y, poly_coords_x)] = color 
-        if len(lanes) > 5 : print("WARNING | {} lanes detected".format(len(lanes)) )
+        if lane_counter > 5 : print("WARNING | {} lanes detected".format(lane_counter) )
         
         ret = {
             'mask_image': mask,

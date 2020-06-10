@@ -1,144 +1,98 @@
 
-import pickle
-import numpy as np 
-import tensorflow as tf 
 import os 
-import sys
-import cv2
+import os.path as ops 
+import sys 
 sys.path.append(os.getcwd())
-import argparse
 
-from LaneNet_model import LaneNet 
+import json 
+import numpy as np 
+import cv2 
+import pickle 
+import tensorflow as tf 
+import time     
+import glob 
+
+from LaneNet_model.LaneNet import LaneNet 
 from LaneNet_model.LaneNet_PostProcessor import LaneNetPostProcessor
-from LaneNet_model.my_postprocessor import *
-from files import global_config 
-cfg= global_config.cfg
+from LaneNet_model.my_postprocessor import * 
+
+from test_utils import * 
+
+weights_path = r'C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt'
+
+json_dir = r'C:\Users\gad\Desktop\data\train\clean_start'
+json_file = 'label_data_0313.json'
+
+source_dir = 'images/source'
+binary_dir = 'images/binary'
+instance_dir = 'images/instance' 
+
+def save_instance(dir, name, instance_image):
+    instance_path = os.path.join(dir, name) + '.pickle'
+    with open(instance_path, 'wb') as file:
+        pickle.dump(instance_image, file, protocol=pickle.HIGHEST_PROTOCOL) 
 
 
-def init_args():
+def get_json_info(json_dir, json_file, num_images = 10) :
 
-    parser= argparse.ArgumentParser()
-    parser.add_argument("--image", dest = "image", type= str)
-    parser.add_argument("--weights", dest = "weights", type= str)
-    return parser.parse_args() 
+    json_path = ops.join(json_dir, json_file) 
+    assert ops.exists(json_path), 'json file:{} not exist'.format(json_path) 
 
-def minmax_scale(instance_seg_image):
-    #instance_seg_image shape: (512, 256, 4)
-    #convert range from [-1, 1] back to [0, 255]
+    info = []
+    with open(json_path, 'r') as file:
+        for i, line in enumerate(file):
+            if i == num_images : break 
 
-    #return (instance_seg_image + 1.0) * 127.5
+            line_info = json.loads(line) 
+            image_path = ops.join(json_dir, line_info['raw_file'] )
+            lanes_list = line_info['lanes'] 
+            h_list = line_info['h_samples']
 
-    for channel in range(cfg.TRAIN.EMBEDDING_FEATS_DIMS):
-        current_channel= instance_seg_image[:, :, channel]
-        min_value= np.min(current_channel)
-        max_value= np.max(current_channel)
-
-        instance_seg_image[:, :, channel]= (current_channel - min_value) * 255 / ( max_value - min_value) 
-    
-    return instance_seg_image
-
-
-
-
-def get_lanes_masks (image, weights_path):
-    print("getting lanes binary & instance masks ...", end = " ")
-    
-    image = resize_image(image, (512, 256))
-    image = normalize(image) 
-    input_tensor = tf.placeholder(name = 'input_tensor', dtype = tf.float32, shape = [1, 256, 512, 3]) 
-
-    net = LaneNet.LaneNet("test")
-    binary_seg, instance_seg , binary_seg2 = net.inference(input_tensor, name = "lanenet_model")
-
-    with tf.Session() as sess : 
-        saver = tf.train.Saver()
-        saver.restore(sess = sess, save_path = weights_path) 
-
-        binary_seg_image, instance_seg_image, binary_seg_image2 = sess.run([binary_seg, instance_seg, binary_seg2], {input_tensor: [image]})
-
-    binary_seg_image = reverse_normalize(binary_seg_image[0]) 
-    instance_seg_image= reverse_normalize(instance_seg_image[0])
-    print("DONE")
-    return binary_seg_image, instance_seg_image
+            info.append([image_path, lanes_list, h_list])
+        
+    return info 
 
 
 
-def get_lane_curves(binary_image):
-    print("getting lanes curves...", end= "")
-    postprocessor = PostProcessor() 
-    clusters = postprocessor.process(binary_image) 
 
-    lanes = []
-    for cluster in clusters:
-        if cluster.valid : lanes.append(cluster)
-    
-    
-    lanes.sort(key = lambda lane : lane.means[0][1], reverse = True) 
+def predict(image_paths):
 
-    lane_curves = []
-    start_points = []
-    for lane in lanes:
-        lane_curves.append(lane.get_curve()) 
-        start_points.append(lane.get_start_point())
-    
-    print("DONE")
-    return lane_curves , start_points 
+    if not isinstance(image_paths, list): image_paths = [image_paths] 
 
+    images = np.array([normalize(resize_image( read_image(image_path) , (512, 256))) for image_path in image_paths])
+    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [1, 256, 512, 3])
+    net = LaneNet('test') 
+    binary_branch, instance_branch= net.inference(x, 'lanenet_model') 
+    with tf.Session() as sess :
+        load_weights(sess, weights_path) 
+        print('\n\n\n') 
 
-def draw_curve(image, curve, color, start_from =10):
-    print("drawing curves...", end= " ")
-    image= to_colored(image) 
+        for i, image_path in enumerate(image_paths):
+            print("{} processing {}".format(i, image_path)) 
+
+            image = np.array([normalize(resize_image(read_image(image_path), (512, 256)))])
+
+            binary_output, instance_segmentation_output = sess.run([binary_branch, instance_branch], {x : image})
+            
+            binary = resize_image(np.array(binary_output[0] * 255, dtype = np.uint8)  , (1280, 720)) 
+            instance = resize_image(instance_segmentation_output[0], (1280, 720)) 
+
+            save_image(source_dir, 'source_{}'.format(i), image[0]) 
+            save_image(binary_dir, 'binary_{}'.format(i), binary)
+            save_instance(instance_dir, 'instance_{}'.format(i), instance)
+
 
     
-    def draw_lane(image, y, x, color= [255, 0, 0], thickness= 5):
-
-        points = len(x)
-        for i, _ in enumerate(x):
-            new_thickness = int(thickness * (i/ points))
-            cv2.circle(image, (x[i], y[i]), new_thickness,  color, -1)
-
-        return image 
-
-    end_point = image.shape[0] - 10
-    step = (image.shape[0] -10 - start_from)/2
-    y = np.linspace(start_from, end_point, step, endpoint= False).astype(np.int32)
-    x = np.array(curve[0]*y**2 + curve[1]*y + curve[2], dtype = np.int32)
-    
-    image = draw_lane(image, y, x, color = color) 
-    
-    print("DONE")
-    return image 
-
-
-def colorize_lanes(binary):
-
-    p = PostProcessor()
-    ret = p.process(binary) 
-    
-    mask = ret['mask_image'] 
-    ipm_mask = ret['ipm_mask'] 
-    fit_params = ret['fit_params'] 
-    
-    save_image('results', 'mask', mask) 
-    save_image('results', 'ipm_mask', ipm_mask)
-    
-
-def run(args):
-    image = read_image(args.image) 
-    original_shape = image.shape
-    image = resize_image(image , (512, 256))
-    
-
-    binary, instance = get_lanes_masks(image, args.weights)
-    colorize_lanes(binary) 
-    
-    
-
 
 
 if __name__ == "__main__":
-    args = init_args()
+
+    infos = get_json_info(json_dir, json_file, 30)
+    image_paths = [info[0] for info in infos] 
     
-    
-    run(args) 
-    
+    predict(image_paths) 
+
+
+ 
+
+

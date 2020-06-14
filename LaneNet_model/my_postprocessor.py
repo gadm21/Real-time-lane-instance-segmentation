@@ -302,10 +302,10 @@ class PostProcessor(object):
 
     def process(self, binary, source):
         
-        binary = np.array(binary*255, dtype = np.uint8)
+        if int(np.max(binary)) != 255 : binary = np.array(binary*255, dtype = np.uint8)
         image= self.pre_processing(binary) 
-        image = resize_image(binary, (1280, 720) )
-        image_h, image_w = image.shape
+        #image = resize_image(binary, (1280, 720) )
+        #image_h, image_w = image.shape
         
         lanes_coords= np.where(image == 255) 
         assert len(lanes_coords[0]), 'no lanes to process' 

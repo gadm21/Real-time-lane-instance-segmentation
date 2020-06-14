@@ -52,6 +52,18 @@ def morphological_process(image, kernel_size= 5):
 
     return filled_holes 
 
+def remove_noise(image, min_area_threshold= 500):
+    assert len(image.shape) != 3, "remove noise accepts gray images only"
+
+    _, labels, stats, _= cv2.connectedComponentsWithStats(image, connectivity= 8, ltype= cv2.CV_32S)
+
+    for index, stat in enumerate(stats):
+        if stat[4] < min_area_threshold:
+            noise_indecies= np.where(labels == index)
+            image[noise_indecies] = 0
+
+    return image 
+
 #converts an image to grayscale 
 def toGray(image):
     if len(image.shape) == 3:
@@ -66,6 +78,11 @@ def connect_components_analysis(image):
     return cv2.connectedComponentsWithStats(gray_image, connectivity= 8, ltype= cv2.CV_32S)
 
 
+def pre_processing( image):
+    image= toGray(image) 
+    image= remove_noise(image) 
+    image= morphological_process(image) 
+    return image 
 
 
 class LaneCluster(object):
@@ -169,18 +186,18 @@ class LaneNetPostProcessor(object):
 
         return ret
 
-    def postprocess(self, binary_seg_result, instance_seg_result, source_image, data_source= "tusimple"):
+    def postprocess(self, binary, instance_seg_result, source_image, data_source= "tusimple"):
         
         intermediate_path= "images/intermediate"
         os.makedirs(intermediate_path, exist_ok=True) 
 
         #convert binary_seg_result range from [0, 1] to [0, 255]
-        binary= np.array(binary_seg_result * 255, dtype= np.uint8) 
-        binary = resize_image(binary, source_image.shape[0:2] )
-        instance_seg_result = resize_image(instance_seg_result, source_image.shape[0:2]) 
+        if int(np.max(binary)) != 255 : binary= np.array(binary * 255, dtype= np.uint8) 
+        #binary = resize_image(binary, source_image.shape[0:2] )
+        #instance_seg_result = resize_image(instance_seg_result, source_image.shape[0:2]) 
         
         #apply morophology operation to fill in holes
-        binary= morphological_process(binary) 
+        binary= pre_processing(binary) 
 
 
 

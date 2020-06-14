@@ -40,7 +40,6 @@ def predict( images):
     
     return binary_images, instance_images
 
-
 def test_postprocessor(binary_images):
     if not isinstance(binary_images, list): binary_images = [binary_images]
     postprocessor = PostProcessor() 
@@ -56,11 +55,34 @@ if __name__ == "__main__":
     source_images_paths = get_image_paths_list(sources_path) 
     binary_images_paths = get_image_paths_list(binaries_path) 
     instance_images_paths = get_image_paths_list(instances_path) 
+    source_images_paths, binary_images_paths, instance_images_paths = truncate(source_images_paths,
+                                                                                binary_images_paths,
+                                                                                instance_images_paths,
+                                                                                start = 0,
+                                                                                end = 20)
     
     
-    
+    postprocessor = PostProcessor() 
+    his_postprocessor = LaneNetPostProcessor() 
+    my_time = [] 
+    his_time = [] 
 
-    
-    test_postprocessor(binary_images) 
-    
-    
+    for i in range(len(source_images_paths)):
+        print("{} processing {}".format(i, source_images_paths[i]))
+
+        source = read_image(source_images_paths[i]) 
+        binary = normalize(read_image(binary_images_paths[i]) )
+        instance = load_pickle(instance_images_paths[i]) 
+
+        start = time.time() 
+        my_ret = postprocessor.process(binary, source) 
+        my_time.append(time.time() - start) 
+
+        start = time.time() 
+        his_ret = his_postprocessor.postprocess(binary, instance, source) 
+        his_time.append(time.time() - start) 
+        
+
+
+    print("my_tim2:{}    |  his_time:{}".format(np.mean(my_time), np.mean(his_time)))
+

@@ -23,6 +23,8 @@ CFG = global_config.cfg
 
 
 
+weights_path = r'C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt'
+
 
 
 
@@ -257,6 +259,7 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
                 'shape': conv_5_3_binary.get_shape().as_list()
             }
 
+            '''
             # encode stage 5 for instance segmentation
             conv_5_1_instance = self._vgg16_conv_stage(
                 input_tensor=pool4, k_size=3,
@@ -277,6 +280,7 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
                 'data': conv_5_3_instance,
                 'shape': conv_5_3_instance.get_shape().as_list()
             }
+            '''
 
         return
 
@@ -330,7 +334,8 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
                     'data': binary_final_logits,
                     'shape': binary_final_logits.get_shape().as_list()
                 }
-
+            
+            '''
             with tf.variable_scope(name_or_scope='instance_seg_decode'):
 
                 decode_stage_5_instance = self._net_intermediate_results['encode_stage_5_instance']['data']
@@ -359,6 +364,7 @@ class VGG16FCN(cnn_basenet.CNNBaseModel):
                     'data': decode_stage_1_fuse,
                     'shape': decode_stage_1_fuse.get_shape().as_list()
                 }
+            '''
 
     def build_model(self, input_tensor, name, reuse=False):
         """
@@ -390,4 +396,11 @@ if __name__ == '__main__':
     ret = model.build_model(test_in_tensor, name='vgg16fcn')
     for layer_name, layer_info in ret.items():
         print('layer name: {:s} shape: {}'.format(layer_name, layer_info['shape']))
+    
+    print('\n\n\n\n') 
+
+    with tf.Session() as sess:
+        saver = tf.train.Saver() 
+
+        saver.restore(sess, save_path = weights_path) 
     

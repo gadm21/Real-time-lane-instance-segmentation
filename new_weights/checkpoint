@@ -1,0 +1,2 @@
+model_checkpoint_path: "C:\\Users\\gad\\Desktop\\repos\\VOLO\\new_weights\\tusimple_lanenet_vgg.ckpt"
+all_model_checkpoint_paths: "C:\\Users\\gad\\Desktop\\repos\\VOLO\\new_weights\\tusimple_lanenet_vgg.ckpt"

@@ -27,9 +27,9 @@ his_result_path = 'images/his_result'
 json_dir = r'C:\Users\gad\Desktop\data\train\clean_start'
 json_file = 'label_data_0313.json'
 
-weights_path = r'C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt'
+weights_path = r'C:\Users\gad\Desktop\repos\VOLO\new_weights\tusimple_lanenet_vgg.ckpt'
 
-def get_info(json_dir, json_file, num_images = 10) :
+def get_info(json_dir, json_file, start = 0, end = 10) :
 
     json_path = ops.join(json_dir, json_file) 
     assert ops.exists(json_path), 'json file:{} not exist'.format(json_path) 
@@ -37,7 +37,9 @@ def get_info(json_dir, json_file, num_images = 10) :
     info = []
     with open(json_path, 'r') as file:
         for i, line in enumerate(file):
-            if i == num_images : break 
+
+            if i < start : continue 
+            if i > end : break 
 
             line_info = json.loads(line) 
             image_path = ops.join(json_dir, line_info['raw_file'] )
@@ -48,6 +50,8 @@ def get_info(json_dir, json_file, num_images = 10) :
         
     return info 
 
+
+
 def predict( images):
     if not isinstance(images, list): images = [images] 
     original_shape = images[0].shape[0:2]
@@ -56,25 +60,22 @@ def predict( images):
 
     x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [images.shape[0], 256, 512, 3])
     net = LaneNet('test') 
-    binary, instance= net.inference(x, 'lanenet_model')
+    binary = net.inference(x, 'lanenet_model')
 
     with tf.Session() as sess : 
         load_weights(sess, weights_path) 
-        binary_output, instance_segmentation_output = sess.run([binary, instance], {x : images})
-    
-    
+        binary_output = sess.run([binary], {x : images})
+        binary_output = binary_output[0] 
 
+    print("shape:", original_shape) 
     binary_images = [] 
-    instance_images = [] 
-
     for i in range(len(images)) :
-        binary_image = binary_output[i, :, :] 
-        instance_image = instance_segmentation_output[i, :, :, :]  
-        binary_images.append(binary_image) 
-        instance_images.append(instance_image) 
+        binary_image = np.array(binary_output[i, :, :] * 255, dtype = np.uint8)
+        show_image(binary_image) 
+        binary_image = resize_image(binary_image, (original_shape[1], original_shape[0]))  
+        binary_images.append(binary_image )  
 
-    return binary_images, instance_images 
-    #return binary_output, instance_segmentation_output  # [0,1] not [0,255]
+    return binary_images  # [0:255] not [0:1]
 
 
 def order_lanes(lanes):
@@ -83,12 +84,14 @@ def order_lanes(lanes):
     perm = np.argsort(means)
     return np.array(lanes)[perm] 
 
+
 def draw_lanes(image, lanes, color):
     h_samples = lanes[0] 
     lanes_x_coords = lanes[1]
     for lane in lanes_x_coords : 
         for i, x in enumerate(lane) : 
-            
+            if x == -2 : continue 
+
             image = cv2.circle(image, 
                               (x, h_samples[i]),
                               radius = 4,
@@ -118,16 +121,18 @@ def compare_lanes(lanes1, lanes2 ):
 if __name__ == "__main__" :
     
     
-    infos = get_info(json_dir, json_file, 10)
-    binary_images = [normalize(to_gray(read_image(i))) for i in get_image_paths_list(images_path2)] 
+    infos = get_info(json_dir, json_file,  30, 31)
+    #binary_images = [normalize(to_gray(read_image(i))) for i in get_image_paths_list(images_path2)] 
+
     postprocessor = PostProcessor() 
     #his_postprocessor = LaneNetPostProcessor() 
+
     my_time_cost = []
     #his_time_cost = [] 
 
     images = [read_image(infos[i][0]) for i in range(len(infos))] 
     
-    #binary_images, instance_images = predict(images) 
+    binary_images = predict(images) 
     
     
 
@@ -136,7 +141,6 @@ if __name__ == "__main__" :
         image_path, lane_list, h_samples = info
         image = read_image(image_path)
         binary_image = binary_images[i]
-        #instance_image = instance_images[i]  
 
         #time1 = time.time() 
         #his_ret = his_postprocessor.postprocess(binary_image, instance_image, image) 
@@ -157,7 +161,7 @@ if __name__ == "__main__" :
         draw_lanes(image, (h_samples, my_lanes), color = [255, 0, 0])
         draw_lanes(image, (h_samples, gt_lanes), color = [0, 0, 255])
 
-        save_image('images/result', 'lanes_on_source_{}'.format(i), image)
+        save_image('images/new_result', 'lanes_on_source_{}'.format(i), image)
         #save_image('images/result', 'binary_{}'.format(i), binary_image*255)
         #save_image('images/result', 'mine_{}'.format(i), my_ret['mask_image']) 
         #save_image('images/result', 'his_{}'.format(i), his_ret['mask_image'])

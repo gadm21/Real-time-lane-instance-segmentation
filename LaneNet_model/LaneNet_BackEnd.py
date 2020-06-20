@@ -106,6 +106,6 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
                     name='pix_embedding_conv'
                 )
             '''
-        return binary_seg_prediction #, instance_seg_prediction
+        return binary_seg_prediction 
 
 

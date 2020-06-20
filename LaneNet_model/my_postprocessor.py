@@ -303,6 +303,8 @@ class PostProcessor(object):
     def process(self, binary, source):
         
         if int(np.max(binary)) != 255 : binary = np.array(binary*255, dtype = np.uint8)
+        else : binary = np.array(binary, dtype = np.uint8) 
+
         image= self.pre_processing(binary) 
         #image = resize_image(binary, (1280, 720) )
         #image_h, image_w = image.shape

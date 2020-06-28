@@ -90,7 +90,7 @@ class Lane(object):
         for cluster in self.clusters:
             coords_y, coords_x = cluster
             for y, x in zip(coords_y, coords_x) :
-                coords.append((x, y)) 
+                coords.append((x,y)) 
         return np.array(coords) 
 
     def mean(self):
@@ -278,8 +278,8 @@ class PostProcessor(object):
 
     def pre_processing(self, image):
         image= to_gray(image) 
-        image= remove_noise(image) 
-        image= morphological_process(image) 
+        #image= remove_noise(image) 
+        #image= morphological_process(image) 
         return image 
 
     def inspect_lanes(self, lanes):
@@ -300,7 +300,7 @@ class PostProcessor(object):
         unique_labels= np.unique(labels) 
         return labels, unique_labels 
 
-    def process(self, binary, source):
+    def process(self, binary ) :
         
         if int(np.max(binary)) != 255 : binary = np.array(binary*255, dtype = np.uint8)
         else : binary = np.array(binary, dtype = np.uint8) 
@@ -339,12 +339,14 @@ class PostProcessor(object):
                 
         self.inspect_lanes(lanes) 
 
+        perfect_mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
         mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
         
-        lane_counter = 0
         for lane in lanes :
             if not lane.valid : continue 
-            lane_counter += 1
+            
+            color = self.color_map[self.give_id()%len(self.color_map)]
+
             coords = lane.get_coords() 
             coords_y = np.int_(coords[:,1]) 
             coords_x = np.int_(coords[:,0])
@@ -356,13 +358,17 @@ class PostProcessor(object):
             
             poly_coords_y = np.int_(np.linspace(start_point, end_point , end_point - start_point)) 
             poly_coords_x = np.int_(np.clip(params[0]*poly_coords_y**2 + params[1]*poly_coords_y + params[2], 0, 1280-1) )
-            color = self.color_map[self.give_id()%len(self.color_map)]
             
-            mask[(poly_coords_y, poly_coords_x)] = color 
-        if lane_counter > 5 : print("WARNING | {} lanes detected".format(lane_counter) )
+            mask[(coords_y, coords_x)] = color 
+
+            lane_pts = np.vstack((poly_coords_x, poly_coords_y)).transpose() 
+            lane_pts = np.array([lane_pts], np.int64) 
+            cv2.polylines(perfect_mask, lane_pts, isClosed = False, color = color, thickness = 5) 
+            #perfect_mask[(poly_coords_y, poly_coords_x)] = color 
         
         ret = {
-            'mask_image': mask,
+            'mask': mask,
+            'perfect_mask':perfect_mask,
             'lanes_params': lanes_params,
         }
 

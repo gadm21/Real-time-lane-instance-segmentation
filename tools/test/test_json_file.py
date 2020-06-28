@@ -50,32 +50,56 @@ def get_info(json_dir, json_file, start = 0, end = 10) :
         
     return info 
 
+def open_image(image) :
+
+    idx = image.nonzero()[0] 
+    lowest = np.min(idx) 
+    separate = np.minimum(lowest + 70 , image.shape[1]-1) 
+
+    kernel11 = np.ones((11,11), np.uint8)
+    kernel7 = np.ones((7,7), np.uint8)
+    kernel5 = np.ones((5,5), np.uint8) 
+    kernel3 = np.ones((3,3), np.uint8) 
 
 
-def predict( images):
-    if not isinstance(images, list): images = [images] 
-    original_shape = images[0].shape[0:2]
+    image[lowest:separate,:] = cv2.erode(image[lowest:separate,:], kernel11, iterations=1)  
+    #image[separate:,:] |= eroded[separate:,:]
 
-    images = np.array([normalize(resize_image( image , (512, 256))) for image in images])
 
-    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [images.shape[0], 256, 512, 3])
-    net = LaneNet('test') 
-    binary = net.inference(x, 'lanenet_model')
+    image = cv2.dilate(image, kernel5, iterations= 1) 
+    image = cv2.erode(image, kernel3, iterations=1)
 
-    with tf.Session() as sess : 
-        load_weights(sess, weights_path) 
-        binary_output = sess.run([binary], {x : images})
-        binary_output = binary_output[0] 
+    half = image.shape[1] //2
+    image = cv2.line(image, (half,lowest), (half,separate), 255) 
+    return image
+    
+def process_logits_and_score(logits, score):
 
-    print("shape:", original_shape) 
-    binary_images = [] 
-    for i in range(len(images)) :
-        binary_image = np.array(binary_output[i, :, :] * 255, dtype = np.uint8)
-        show_image(binary_image) 
-        binary_image = resize_image(binary_image, (original_shape[1], original_shape[0]))  
-        binary_images.append(binary_image )  
+    a = ['score1', 'score2', 'logits1', 'logits2'] 
 
-    return binary_images  # [0:255] not [0:1]
+    for i in range(logits.shape[0]) : 
+
+        print("analyzing:{}".format(a[1]))
+        analyze(score[i, :,:,1], id = i ) 
+        
+        #print("analyzing:{}".format(a[3]))
+        #analyze(logits[i, :,:,1] )
+
+
+def analyze(score2, id, gamma = 0.1):
+
+        score2 = resize_image(score2, (1280, 720)) 
+
+        score2[score2<0] = 0 
+
+        score2 *= (1/np.max(score2)) 
+        score2[score2 <= 0.2] = 0 
+        score2[score2 > 0.2] = 255
+
+        score2 = np.array(score2, dtype = np.uint8)
+        score2 = open_image(score2) 
+        
+        save_image('images/crazy_idea', 'score_{}'.format(id), score2) 
 
 
 def order_lanes(lanes):
@@ -118,10 +142,37 @@ def compare_lanes(lanes1, lanes2 ):
                 
     return diff 
 
+
+def predict( images):
+    if not isinstance(images, list): images = [images] 
+    original_shape = images[0].shape[0:2]
+
+    images = np.array([normalize(resize_image( image , (512, 256))) for image in images])
+
+    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [images.shape[0], 256, 512, 3])
+    net = LaneNet('test') 
+    binary, logits, score = net.inference(x, 'lanenet_model')
+
+    with tf.Session() as sess : 
+        load_weights(sess, weights_path) 
+        binary_output, logits_output, score_output = sess.run([binary, logits, score], {x : images})
+
+
+    process_logits_and_score(logits_output, score_output) 
+
+    binary_images = [] 
+    for i in range(len(images)) :
+        binary_image = np.array(binary_output[i, :, :] * 255, dtype = np.uint8)
+        binary_image = resize_image(binary_image, (original_shape[1], original_shape[0]))  
+        binary_images.append(binary_image )  
+
+    return binary_images  # [0:255] not [0:1]
+
+
 if __name__ == "__main__" :
     
     
-    infos = get_info(json_dir, json_file,  30, 31)
+    infos = get_info(json_dir, json_file, 361,366)
     #binary_images = [normalize(to_gray(read_image(i))) for i in get_image_paths_list(images_path2)] 
 
     postprocessor = PostProcessor() 
@@ -135,8 +186,10 @@ if __name__ == "__main__" :
     binary_images = predict(images) 
     
     
-
-
+    for i, b in enumerate(binary_images) : 
+        save_image('images/crazy_idea', 'binary_{}'.format(i), b)
+        #show_image(b) 
+    '''
     for i, info in enumerate(infos):
         image_path, lane_list, h_samples = info
         image = read_image(image_path)
@@ -170,6 +223,6 @@ if __name__ == "__main__" :
         if i % 3 == 0 :
             print("my postprocessing time :{}".format(np.mean(my_time_cost))) 
             #print("his postprocessing time:{}".format(np.mean(his_time_cost)))
-        
+    '''
         
             

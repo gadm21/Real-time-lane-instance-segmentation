@@ -4,7 +4,7 @@ from test_utils import *
 
 
 
-def save_predictions(start = 400, end = 408, path = 'images/full_loop/binaries_scores'):
+def save_predictions(start = 200, end = 210, path = 'images/full_loop/binaries_scores'):
     infos = get_info(start = start, end = end ) 
     image_paths = np.array([infos[i][0] for i in range(len(infos))])
 
@@ -52,7 +52,7 @@ def mask_on_source() :
 
 def full_loop(path = 'images/full_loop') : 
     
-    sources, binaries, scores = save_predictions(path = path + 'binaries_scores') 
+    sources, binaries, scores = save_predictions(path = os.path.join(path,'binaries_scores')) 
 
     pp = PostProcessor()
     processing_time = [] 
@@ -87,8 +87,6 @@ def full_loop(path = 'images/full_loop') :
         save_image(path+'/mask_on_sourcce', 'binary_{}'.format(i), binary_source) 
         save_image(path+'/mask_on_sourcce', 'binary_perfect_{}'.format(i), binary_perfect_source) 
 
-        if i % 7 == 0 : 
-            print('average processing time:{}'.format(np.mean(processing_time)/2))
 
 
     print("processed {}    in {}    average {}    max {}".format(len(sources), np.sum(processing_time), np.mean(processing_time)/2, np.max(processing_time)/2))

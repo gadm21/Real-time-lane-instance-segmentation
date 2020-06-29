@@ -7,3 +7,4 @@ images/
 his_mask/
 my_mask/
 images2/
+clip_model.py

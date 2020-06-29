@@ -127,15 +127,20 @@ def predict( image_paths, path, batch_size = 3):
     binary, score = net.inference(x, 'lanenet_model')
     scores = [] 
     binaries = [] 
+    inference_time = [] 
 
     with tf.Session() as sess : 
         load_weights(sess, weights_path) 
-        
+        number_of_params = np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])
         for i in range(0, len(image_paths), batch_size) :
 
             batch = image_paths[i: min(i+batch_size, len(image_paths))] 
             images = np.array([normalize(resize_image( read_image(image_path) , (512, 256))) for image_path in batch])
+            start = time.time()
             binary_output, score_output = sess.run([binary, score], {x : images})
+            t = time.time() - start 
+            t /= batch_size 
+            inference_time.append(t)
             processed_scores= process_score(score_output) 
 
             for ii, score_result in enumerate(processed_scores) :
@@ -146,7 +151,9 @@ def predict( image_paths, path, batch_size = 3):
                 save_image(path, 'binary_{}'.format(i+ii), binary_result) 
                 binaries.append(path+'/binary_{}'.format(i+ii)+'.png') 
     
-
+    print("average inference time :{}".format(np.mean(inference_time)))
+    print("number of parameters : {}".format(number_of_params)) 
+    
     return binaries, scores
 
 

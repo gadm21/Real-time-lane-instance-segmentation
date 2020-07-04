@@ -192,6 +192,7 @@ def open_image(image) :
 
     image[lowest:separate//2,:] = cv2.erode(image[lowest:separate//2,:], kernel11, iterations=1) 
     image[separate//2:separate,:] = cv2.erode(image[separate//2:separate,:], kernel9, iterations=1) 
+    #image[lowest:separate,:] = cv2.dilate(image[lowest:separate,:], kernel3)
 
     image = cv2.GaussianBlur(image,(9,9),cv2.BORDER_DEFAULT)
     image[image > 0 ] = 255 

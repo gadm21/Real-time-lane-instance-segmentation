@@ -49,11 +49,10 @@ def mask_on_source() :
         save_image('images/scores4', 'source_pure_score_{}'.format(i), image) 
 
 
-
-def full_loop(path = 'images/full_loop') : 
+def full_loop(path = 'images/threebrothers') : 
     
     sources, binaries, scores = save_predictions(path = os.path.join(path,'binaries_scores')) 
-
+    
     pp = PostProcessor()
     processing_time = [] 
 
@@ -91,5 +90,43 @@ def full_loop(path = 'images/full_loop') :
 
     print("processed {}    in {}    average {}    max {}".format(len(sources), np.sum(processing_time), np.mean(processing_time)/2, np.max(processing_time)/2))
 
+
+######################################################################################################
+
+def process_score2(path, scores):
+    
+    for i in range(scores.shape[0]) : 
+        score = np.argmax(scores[i,:,:,:], -1)
+        
+        #score = scores[i, :,:,ii]
+        score[score < 0] = 0 
+        print(np.mean(score), "  ", np.max(score), "  ", np.min(score)) 
+        print(score.shape) 
+        #score *= (1/np.max(score)) 
+        #score[score <= 0.5] = 0 
+        #score[score > 0.5] = 1
+        score = np.array(score*255, dtype = np.uint8) 
+        score = resize_image(score, (1280, 720)) 
+        save_image(path, 'scoreargmax_{}'.format(i), score) 
+
+def print_binary_segmentation(path = 'images/threebrothers') : 
+    
+    infos = get_info(start = 3, end = 6) 
+    image_paths = np.array([infos[i][0] for i in range(len(infos))])
+    
+    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [None, 256, 512, 3])
+    net = LaneNet('test') 
+    binary, score = net.inference(x, 'lanenet_model')
+    
+
+    with tf.Session() as sess : 
+        load_weights(sess, weights_path) 
+        images = np.array([normalize(resize_image( read_image(image_path) , (512, 256))) for image_path in image_paths])
+        binary_output, score_output = sess.run([binary, score], {x : images})
+
+        process_score2('nowhere', score_output) 
+        
+        
+######################################################################################################
 
 full_loop() 

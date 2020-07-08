@@ -20,7 +20,7 @@ sources_path = 'sources'
 binaries_path = 'images/binary'
 instances_path = 'images/instance' 
 
-weights_path = r'C:\Users\gad\Desktop\repos\VOLO\weights\tusimple_lanenet_vgg.ckpt'
+weights_path = r'C:\Users\gad\Desktop\repos\VOLO\new_weights\tusimple_lanenet_vgg.ckpt'
 
 
 
@@ -29,9 +29,9 @@ if __name__ == "__main__":
 
     source_images_paths = get_image_paths_list(sources_path) 
     
-    x = tf.placeholder(shape = [None,256,512,3], type = tf.float32) 
+    x = tf.placeholder(shape = [None,256,512,3], dtype = tf.float32) 
     net = LaneNet() 
-    b,s = net.inference() 
+    b,s = net.inference(x) 
     
     
     postprocessor = PostProcessor() 

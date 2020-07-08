@@ -91,7 +91,7 @@ class LaneNetBackEnd(cnn_basenet.CNNBaseModel):
 
             with tf.variable_scope(name_or_scope='binary_seg'):
                 binary_seg_score = tf.nn.softmax(logits=binary_seg_logits)
-                binary_seg_score= binary_seg_logits 
+                #binary_seg_score= binary_seg_logits 
                 binary_seg_prediction = tf.argmax(binary_seg_score, axis=-1)
             
             '''

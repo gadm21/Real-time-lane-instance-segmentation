@@ -1,107 +1,6 @@
 
-import time 
-import cv2 
-import numpy as np 
-from sklearn.cluster import DBSCAN
-import os 
-import sys 
-import random
-random.seed(4)
-sys.path.append(os.getcwd()) 
-
-def read_image(image_path):
-    return cv2.imread(image_path) 
-
-def save_image(save_dir, image_name, image):
-    os.makedirs(save_dir, exist_ok=True) 
-    cv2.imwrite(os.path.join(save_dir, image_name+".png"), image)
-
-def show_image(image, label= 'r' ):
-    cv2.imshow(label, image) 
-    cv2.waitKey(0)  
-    cv2.destroyWindow(label)
-
-def to_gray(image):
-
-    if len(image.shape) == 3:
-        gray_image= cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else: gray_image= image 
-
-    return gray_image 
-
-def to_colored(image):
-    if len(image.shape) < 3:
-        colored_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-    else: colored_image= image
-
-    return colored_image 
-
-def remove_noise(image, min_area_threshold= 500):
-    assert len(image.shape) != 3, "remove noise accepts gray images only"
-
-    _, labels, stats, _= cv2.connectedComponentsWithStats(image, connectivity= 8, ltype= cv2.CV_32S)
-
-    for index, stat in enumerate(stats):
-        if stat[4] < min_area_threshold:
-            noise_indecies= np.where(labels == index)
-            image[noise_indecies] = 0
-
-    return image 
-
-def morphological_process(image, kernel_size= 5):
-    assert len(image.shape) != 3, "morphological_process accepts gray images only"
-
-    kernel= cv2.getStructuringElement(shape= cv2.MORPH_ELLIPSE, ksize= (kernel_size, kernel_size)) 
-    filled_holes_image= cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel, iterations= 1)
-
-    return filled_holes_image 
-
-def resize_image(image, new_size):
-    return cv2.resize(image, new_size)
-
-def normalize(image):
-    return image / 127.5 - 1.0
-
-def reverse_normalize(image):
-    return np.array(image*255, dtype = np.uint8)
 
 
-def order_lanes(lanes):
-    means = [] 
-    for lane in lanes: means.append(np.mean(lane)) 
-    perm = np.argsort(means)
-    return np.array(lanes)[perm] 
-
-def get_lanes(h_samples, lanes_params) :
-    lanes = []
-    coords_y = np.int_(h_samples) 
-    for lane_params in lanes_params:
-        coords_x = np.int_(lane_params[0]*coords_y**3+lane_params[1]*coords_y**2 + lane_params[2]*coords_y + lane_params[3])
-        #coords_x[coords_x<0] = -2 
-        #coords_x[coords_x>1179] = -2
-        lanes.append(coords_x)
-    
-    lanes = order_lanes(lanes) 
-    lanes[lanes<0] = -2 
-    lanes[lanes>1179] = -2 
-    lanes = lanes.tolist()
-
-    return lanes 
-
-def get_rightful_lanes(lane, h_samples, lane_points):
-    rightful_lane_points = [] 
-    coords = lane.get_coords() 
-    lane_x, lane_y = coords[:,0], coords[:,1] 
-    low_y, high_y = int(np.min(lane_y)), int(np.max(lane_y)) 
-    for i, h in enumerate(h_samples) : 
-        if h > high_y or h < low_y : 
-            rightful_lane_points.append(-2) 
-            continue 
-        idx = np.where(lane_y==h) 
-        if len(idx[0]) == 0: rightful_lane_points.append(lane_points[i]) 
-        else : rightful_lane_points.append(int(np.mean(lane_x[idx])))
-
-    return rightful_lane_points
 
 
 class Lane(object):
@@ -127,8 +26,7 @@ class Lane(object):
         coords = [] 
         for cluster in self.clusters:
             coords_y, coords_x = cluster
-            #coords.append((int(np.mean(coords_x)), int(np.mean(coords_y))))
-            for x,y in zip(coords_x, coords_y):
+            for y, x in zip(coords_y, coords_x) :
                 coords.append((x,y)) 
         return np.array(coords) 
 
@@ -215,7 +113,7 @@ class Lane(object):
         last_mean = self.means[-1] 
         return last_mean[0]
 
-    def complete(self, cluster_coords, image):
+    def complete(self, write, cluster_coords, image):
 
         self.clusters.append(cluster_coords) 
         self.means.append((int(np.mean(self.clusters[-1][0])), int(np.mean(self.clusters[-1][1]))))
@@ -226,10 +124,11 @@ class Lane(object):
         lowest_lane_coord= np.min(lanes_coords[0])
         highest_lane_coord= np.max(cluster_coords[0]) 
         window_center= self.means[-1][1]
-        
+        slidingwindow = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
         
         for window in range(highest_lane_coord, lowest_lane_coord, - self.window_h):
             margin= int(self.cluster_width())
+            slidingwindow = cv2.rectangle(slidingwindow, (window_center-margin ,window-self.window_h), (window_center+margin ,window), color = (0,255,0), thickness = 1)
 
             window_pix= (lanes_coords[0] >= window - self.window_h) & \
                         (lanes_coords[0] < window) & \
@@ -241,6 +140,7 @@ class Lane(object):
             self.clusters.append(lane_coords_within_window) 
             window_center= self.mean()[1]
 
+        if write: save_image('temp', 'slidingwindow', slidingwindow) 
         image= self.blacken(image) 
         #image= remove_noise(image) 
         return image 
@@ -263,7 +163,6 @@ class Lane(object):
             ys.append(m[0])
             xs.append(m[1])
         '''
-        
         for cluster in self.clusters:
             for point in cluster:
                 ys.append(point[0])
@@ -287,12 +186,12 @@ class Lane(object):
         params = 0 #np.polyfit(nonzero_y, nonzero_x, 2) 
         
         return mask, ipm_mask, params
-      
+  
 
 
 
 
-class PostProcessor(object):
+class FakePostProcessor(object):
 
     def __init__(self, ipm_remap_file_path='files/tusimple_ipm_remap.yml'):
         
@@ -311,8 +210,7 @@ class PostProcessor(object):
         self.dbscan_min_samples= 30
         self.db= DBSCAN(self.dbscan_eps, self.dbscan_min_samples) 
         self.lane_acceptance_factor= 0.4
-
-        self.h_samples = [160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500, 510, 520, 530, 540, 550, 560, 570, 580, 590, 600, 610, 620, 630, 640, 650, 660, 670, 680, 690, 700, 710]
+    
     def give_id(self):
         self.lane_id+= 1
         return self.lane_id 
@@ -349,7 +247,13 @@ class PostProcessor(object):
         image= self.pre_processing(binary) 
         #image = resize_image(binary, (1280, 720) )
         #image_h, image_w = image.shape
-        
+        slidingwindow1_image = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        cluster_image = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        write_lost = True
+        write_2 = True 
+        write_cluster = True 
+        lost_lane = image.copy() 
+
         lanes_coords= np.where(image == 255) 
         assert len(lanes_coords[0]), 'no lanes to process' 
 
@@ -372,16 +276,25 @@ class PostProcessor(object):
                 cluster= (labels == label)
                 cluster_coords= (stride_lanes_coords[0][cluster], stride_lanes_coords[1][cluster])
                 
+                cluster_image[cluster_coords] = random.choice(self.color_map) 
+
                 lane= Lane(self.give_id()) 
-                
-                image= lane.complete(cluster_coords, image) 
-                
+                image= lane.complete(write_2, cluster_coords, image) 
+                write_2 = False 
+                if write_lost : 
+                    save_image(path, 'lostlane', image) 
+                    write_lost = False
                 lanes.append(lane) 
-                
+
+            slidingwindow1_image = cv2.line(slidingwindow1_image, (0,stride),(image.shape[1]-1,stride), color = (255,0,0), thickness = 1) 
+
+        save_image(path,'clusters', cluster_image) 
+
+        save_image(path, 'bigslidingwindow', slidingwindow1_image)
+
         self.inspect_lanes(lanes) 
 
         perfect_mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
-        perfect_binary_mask = np.zeros((720,1280), dtype = np.uint8) 
         mask = np.zeros((720, 1280, 3), dtype = np.uint8) 
         
         for lane in lanes :
@@ -395,52 +308,25 @@ class PostProcessor(object):
             start_point = np.min(coords_y) 
             end_point = np.max(coords_y) 
             
-            params = np.polyfit(coords_y, coords_x, 3) 
+            params = np.polyfit(coords_y, coords_x, 2) 
             lanes_params.append(params) 
             
             poly_coords_y = np.int_(np.linspace(start_point, end_point , end_point - start_point)) 
-            poly_coords_x = np.int_(np.clip(params[0]*poly_coords_y**3+params[1]*poly_coords_y**2 + params[2]*poly_coords_y + params[3], 0, 1280-1) )
+            poly_coords_x = np.int_(np.clip(params[0]*poly_coords_y**2 + params[1]*poly_coords_y + params[2], 0, 1280-1) )
             
             mask[(coords_y, coords_x)] = color 
 
             lane_pts = np.vstack((poly_coords_x, poly_coords_y)).transpose() 
             lane_pts = np.array([lane_pts], np.int64) 
             cv2.polylines(perfect_mask, lane_pts, isClosed = False, color = color, thickness = 5) 
-            cv2.polylines(perfect_binary_mask, lane_pts, isClosed = False, color = 255, thickness = 5) 
             #perfect_mask[(poly_coords_y, poly_coords_x)] = color 
-
-        lanes_points = get_lanes(self.h_samples, lanes_params)
-        rightful_lanes_points = [] 
-        for i, lane_points in enumerate(lanes_points) :
-            rightful_lanes_points.append( get_rightful_lanes(lanes[i],self.h_samples, lane_points) )
-         
-
         
         ret = {
             'mask': mask,
             'perfect_mask':perfect_mask,
-            'perfect_binary_mask':perfect_binary_mask,
             'lanes_params': lanes_params,
-            'rightful_lanes_points': rightful_lanes_points
         }
 
         return ret 
         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

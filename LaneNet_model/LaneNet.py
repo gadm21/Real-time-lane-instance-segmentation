@@ -10,7 +10,7 @@ cfg= global_config.cfg
 
 class LaneNet(cnn_basenet.CNNBaseModel):
     
-    def __init__(self, phase, reuse= False):
+    def __init__(self, phase = 'test', reuse= False):
         super(LaneNet, self).__init__()
         self._net_flag= 'vgg'
         self._reuse= reuse
@@ -19,7 +19,7 @@ class LaneNet(cnn_basenet.CNNBaseModel):
         self._backend= LaneNet_BackEnd.LaneNetBackEnd(phase= phase)
 
     
-    def inference(self, input_tensor, name):
+    def inference(self, input_tensor, name = "lanenet_model"):
 
         with tf.variable_scope(name_or_scope= name, reuse= self._reuse):
             #first, extract image feautres

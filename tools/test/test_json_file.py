@@ -24,10 +24,14 @@ images_path2 = 'images/input_binary'
 my_result_path = 'images/my_result'
 his_result_path = 'images/his_result' 
 
-json_dir = r'C:\Users\gad\Desktop\data\train\clean_start'
-json_file = 'label_data_0313.json'
+json_dir = r'C:\Users\gad\Desktop\data\train\clean_start\test'
+json_file = 'test_tasks_0627.json'
+
+label_json_dir = r'C:\Users\gad\Desktop\data' 
+label_json_file = 'test_label.json'
 
 weights_path = r'C:\Users\gad\Desktop\repos\VOLO\new_weights\tusimple_lanenet_vgg.ckpt'
+
 
 def get_info(json_dir, json_file, start = 0, end = 10) :
 
@@ -49,58 +53,7 @@ def get_info(json_dir, json_file, start = 0, end = 10) :
             info.append([image_path, lanes_list, h_list])
         
     return info 
-
-def open_image(image) :
-
-    idx = image.nonzero()[0] 
-    lowest = np.min(idx) 
-    separate = np.minimum(lowest + 70 , image.shape[1]-1) 
-
-    kernel11 = np.ones((11,11), np.uint8)
-    kernel7 = np.ones((7,7), np.uint8)
-    kernel5 = np.ones((5,5), np.uint8) 
-    kernel3 = np.ones((3,3), np.uint8) 
-
-
-    image[lowest:separate,:] = cv2.erode(image[lowest:separate,:], kernel11, iterations=1)  
-    #image[separate:,:] |= eroded[separate:,:]
-
-
-    image = cv2.dilate(image, kernel5, iterations= 1) 
-    image = cv2.erode(image, kernel3, iterations=1)
-
-    half = image.shape[1] //2
-    image = cv2.line(image, (half,lowest), (half,separate), 255) 
-    return image
     
-def process_logits_and_score(logits, score):
-
-    a = ['score1', 'score2', 'logits1', 'logits2'] 
-
-    for i in range(logits.shape[0]) : 
-
-        print("analyzing:{}".format(a[1]))
-        analyze(score[i, :,:,1], id = i ) 
-        
-        #print("analyzing:{}".format(a[3]))
-        #analyze(logits[i, :,:,1] )
-
-
-def analyze(score2, id, gamma = 0.1):
-
-        score2 = resize_image(score2, (1280, 720)) 
-
-        score2[score2<0] = 0 
-
-        score2 *= (1/np.max(score2)) 
-        score2[score2 <= 0.2] = 0 
-        score2[score2 > 0.2] = 255
-
-        score2 = np.array(score2, dtype = np.uint8)
-        score2 = open_image(score2) 
-        
-        save_image('images/crazy_idea', 'score_{}'.format(id), score2) 
-
 
 def order_lanes(lanes):
     means = [] 
@@ -126,9 +79,16 @@ def get_lanes(h_samples, lanes_params) :
     lanes = []
     coords_y = np.int_(h_samples) 
     for lane_params in lanes_params:
-        coords_x = np.int_(np.clip(lane_params[0]*coords_y**2 + lane_params[1]*coords_y + lane_params[2], 0, 1280-1))
+        coords_x = np.int_(lane_params[0]*coords_y**3+lane_params[1]*coords_y**2 + lane_params[2]*coords_y + lane_params[3])
+        #coords_x[coords_x<0] = -2 
+        #coords_x[coords_x>1179] = -2
         lanes.append(coords_x)
     
+    lanes = order_lanes(lanes) 
+    lanes[lanes<0] = -2 
+    lanes[lanes>1179] = -2 
+    lanes = lanes.tolist()
+
     return lanes 
 
 def compare_lanes(lanes1, lanes2 ):
@@ -143,32 +103,71 @@ def compare_lanes(lanes1, lanes2 ):
     return diff 
 
 
-def predict( images):
-    if not isinstance(images, list): images = [images] 
-    original_shape = images[0].shape[0:2]
-
-    images = np.array([normalize(resize_image( image , (512, 256))) for image in images])
-
-    x = tf.placeholder(name = 'input', dtype = tf.float32, shape = [images.shape[0], 256, 512, 3])
-    net = LaneNet('test') 
-    binary, logits, score = net.inference(x, 'lanenet_model')
-
-    with tf.Session() as sess : 
-        load_weights(sess, weights_path) 
-        binary_output, logits_output, score_output = sess.run([binary, logits, score], {x : images})
 
 
-    process_logits_and_score(logits_output, score_output) 
 
-    binary_images = [] 
-    for i in range(len(images)) :
-        binary_image = np.array(binary_output[i, :, :] * 255, dtype = np.uint8)
-        binary_image = resize_image(binary_image, (original_shape[1], original_shape[0]))  
-        binary_images.append(binary_image )  
+def show(image, h, mine, his, id, save = 'mine_vsgt', display= True):
+   
+    for lane in his :
+        for i in range(len(lane)):
+            if int(lane[i]) == -2 : continue 
+            cv2.circle(image, (int(lane[i]), int(h[i])), thickness = 2, color = [0,255,0], radius = 2) 
+    
+    for lane in mine : 
+        for i in range(len(lane)):
+            if int(lane[i]) == -2 : continue 
+            cv2.circle(image,  (int(lane[i]), int(h[i])), thickness = 2, color = [255,0,0], radius = 2) 
+    
+    if display : show_image(image) 
+    if save : 
+        save_image(save, str(id), image) 
+   
+    
 
-    return binary_images  # [0:255] not [0:1]
 
 
+def run() :     
+
+    lines = get_json_lines(json_dir, json_file) 
+    gt_lines = get_json_lines(label_json_dir, label_json_file) 
+
+    h = lines[0]['h_samples'] 
+    pp = PostProcessor() 
+
+    input = tf.placeholder(dtype = tf.float32, shape=[None, 256,512,3]) 
+    net = LaneNet() 
+    b, s = net.inference(input) 
+
+    with open('pred_file.json', 'w') as file : 
+        with tf.Session() as sess : 
+            load_weights(sess, weights_path)
+
+            counter = 0
+            start = time.time()
+            for line in lines : 
+                print("line:", counter) 
+                counter += 1
+
+                image_path = ops.join(json_dir, line['raw_file']) 
+                image = np.array([normalize(resize_image( read_image(image_path) , (512, 256)))])
+
+                binary, score = sess.run([b,s], {input:image}) 
+                binary_image = process_binary(denormalize(binary[0]) ) 
+            
+                ret = pp.process(binary_image) 
+                lanes = ret['rightful_lanes_points']#get_lanes(h,ret["lanes_params"])
+                line['lanes'] = lanes 
+                file.write(json.dumps(line)+'\n')
+                show(read_image(image_path), h, lanes, gt_lines[counter-1]['lanes'], id=counter, display = False) 
+                if counter == 100 : break 
+
+            print("time:", time.time() - start) 
+    
+
+
+run() 
+
+'''
 if __name__ == "__main__" :
     
     
@@ -189,7 +188,7 @@ if __name__ == "__main__" :
     for i, b in enumerate(binary_images) : 
         save_image('images/crazy_idea', 'binary_{}'.format(i), b)
         #show_image(b) 
-    '''
+    
     for i, info in enumerate(infos):
         image_path, lane_list, h_samples = info
         image = read_image(image_path)
@@ -223,6 +222,6 @@ if __name__ == "__main__" :
         if i % 3 == 0 :
             print("my postprocessing time :{}".format(np.mean(my_time_cost))) 
             #print("his postprocessing time:{}".format(np.mean(his_time_cost)))
-    '''
-        
+    
+'''   
             

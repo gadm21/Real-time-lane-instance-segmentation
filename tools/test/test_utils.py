@@ -34,7 +34,12 @@ def load_weights(sess, weights_path):
     saver = tf.train.Saver() 
     saver.restore(sess = sess, save_path= weights_path) 
 
-
+def get_json_lines(json_dir, json_file):
+    json_path = ops.join(json_dir, json_file) 
+    assert ops.exists(json_path), 'json file:{} not exist'.format(json_path) 
+    with open(json_path,'r') as file : 
+        lines = [json.loads(line) for line in file.readlines()] 
+    return lines   
 
 def get_image_paths_list(images_path):
     images_list = glob.glob('{}/*.png'.format(images_path))
@@ -157,6 +162,12 @@ def predict( image_paths, path, batch_size = 3):
     return binaries, scores
 
 
+def denormalize(image):
+    return resize_image(np.array(image*255, dtype= np.uint8), (1280,720)) 
+
+def process_binary(binary):
+    binary = open_image(binary) 
+    return binary 
 
 
 def process_score(scores) : 
@@ -186,6 +197,7 @@ def open_image(image) :
 
     kernel11 = np.ones((11,11), np.uint8)
     kernel9 = np.ones((9,9), np.uint8)
+    kernel7 = np.ones((7,7), np.uint8) 
     kernel5 = np.ones((5,5), np.uint8) 
     kernel3 = np.ones((3,3), np.uint8) 
 
@@ -196,7 +208,7 @@ def open_image(image) :
 
     image = cv2.GaussianBlur(image,(9,9),cv2.BORDER_DEFAULT)
     image[image > 0 ] = 255 
-    image = cv2.erode(image, kernel3, iterations=1)
+    image = cv2.erode(image, kernel7, iterations=1)
     
     return image
 

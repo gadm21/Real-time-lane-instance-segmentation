@@ -105,30 +105,56 @@ def compare_lanes(lanes1, lanes2 ):
 
 
 
-
-def show(image, h, mine, his, id, save = 'mine_vsgt', display= True):
+def show(image, h, mine, his, id, save = 'new_mine_vs_gt', display= True):
    
+    image2 = image.copy() 
+
     for lane in his :
         for i in range(len(lane)):
             if int(lane[i]) == -2 : continue 
-            cv2.circle(image, (int(lane[i]), int(h[i])), thickness = 2, color = [0,255,0], radius = 2) 
+            cv2.circle(image, (int(lane[i]), int(h[i])), thickness = 5, color = [0,255,0], radius = 2) 
     
     for lane in mine : 
         for i in range(len(lane)):
             if int(lane[i]) == -2 : continue 
-            cv2.circle(image,  (int(lane[i]), int(h[i])), thickness = 2, color = [255,0,0], radius = 2) 
+            cv2.circle(image2,  (int(lane[i]), int(h[i])), thickness = 5, color = [255,0,0], radius = 2) 
     
-    if display : show_image(image) 
+    if display : 
+
+        show_image(image) 
+        show_image(image2) 
     if save : 
         save_image(save, str(id), image) 
+        save_image(save, str(id)+"_mine", image2) 
    
-    
 
+def final_show(image, h, lane_points):
+
+    save_image('hello', 'source', image) 
+
+    binary_his = np.zeros((720,1280,1), np.uint8) 
+    binary_mine = np.zeros((720,1280,1), np.uint8) 
+
+    for lane in lane_points : 
+        for i in range(len(lane)):
+            if int(lane[i]) == -2 : continue 
+            cv2.circle(binary_his, (int(lane[i]), int(h[i])), thickness = 5, color = 255, radius=2) 
+        l = np.array(lane) 
+        new_h = np.array(h) 
+        idx = np.where(l!=-2) 
+        new_h, l = new_h[idx], l[idx]
+        lane_pts = np.vstack((l, new_h)).transpose() 
+        lane_pts = np.array([lane_pts], np.int64) 
+        cv2.polylines(binary_mine, lane_pts, isClosed = False, color = 255, thickness = 5)     
+
+
+    save_image('hello', 'binary_mine', binary_mine) 
+    save_image('hello', 'binary_his', binary_his)
 
 
 def run() :     
 
-    lines = get_json_lines(json_dir, json_file) 
+    lines = get_json_lines(json_dir, json_file)[0:1]
     gt_lines = get_json_lines(label_json_dir, label_json_file) 
 
     h = lines[0]['h_samples'] 
@@ -148,18 +174,18 @@ def run() :
                 print("line:", counter) 
                 counter += 1
 
-                image_path = ops.join(json_dir, line['raw_file']) 
+                image_path = ops.join(json_dir, line['raw_file'])
                 image = np.array([normalize(resize_image( read_image(image_path) , (512, 256)))])
 
                 binary, score = sess.run([b,s], {input:image}) 
                 binary_image = process_binary(denormalize(binary[0]) ) 
-            
+                
                 ret = pp.process(binary_image) 
                 lanes = ret['rightful_lanes_points']#get_lanes(h,ret["lanes_params"])
                 line['lanes'] = lanes 
                 file.write(json.dumps(line)+'\n')
-                show(read_image(image_path), h, lanes, gt_lines[counter-1]['lanes'], id=counter, display = False) 
-                if counter == 100 : break 
+                #show(read_image(image_path), h, lanes, gt_lines[counter-1]['lanes'], id=counter, display = False) 
+                final_show(read_image(image_path), h,gt_lines[counter-1]['lanes'])
 
             print("time:", time.time() - start) 
     
